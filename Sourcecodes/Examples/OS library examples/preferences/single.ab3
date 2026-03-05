@@ -1,0 +1,142 @@
+; XTRA
+; Embedded .xtra Header
+; 
+; General Info
+; -------------------------------------------------------
+; ExePath         = ""
+; ExeFile         = ""
+; CreateIcon      = 1
+; Residents       = "all.res"
+; 
+; Compiler
+; -------------------------------------------------------
+; StringBuffer    = 10240
+; MakeSmallest    = 0
+; FuncOptimize    = 0
+; Version         = 0.0.0
+; NumberOfBuilds  = 1
+; 
+; Debugger
+; -------------------------------------------------------
+; CliArgs         = ""
+; StackSize       = 8191
+; RuntimeDebug    = 1
+; DebugInfo       = 0
+; CreateDbgFile   = 0
+; OverflowCheck   = 1
+; AssemblerCheck  = 0
+; InterruptCheck  = 1
+; AutoRun         = 1
+; 
+; Editor
+; -------------------------------------------------------
+; CursorLine      = 2
+; CursorColumn    = 1
+; LabelSearch     = ""
+; LabelRemark     = 0
+; LabelAll        = 0
+; LabelCase       = 0
+; LabelPosition   = 0
+; 
+; Blitz Objects
+; -------------------------------------------------------
+; Max File        = 5
+; Max GadgetList  = 5
+; Max Shape       = 100
+; Max Bank        = 5
+; Max MenuList    = 5
+; Max GTList      = 20
+; Max BitMap      = 10
+; Max Screen      = 5
+; Max IntuiFont   = 5
+; Max Window      = 20
+; Max Palette     = 32
+; Max BlitzFont   = 4
+; Max IconInfo    = 1
+; Max MUIObject   = 50
+; Max AsyncReq    = 4
+; Max Req-Lib     = 5
+; Max GTMenuList  = 5
+; Max Console     = 5
+; Max TCPSock     = 5
+; Max Tape        = 5
+; Max TagList     = 5
+; Max Database    = 16
+; Max Sound       = 10
+; Max MedModule   = 8
+; Max Buffer      = 10
+; Max Queue       = 10
+; Max Sprite      = 20
+; Max Module      = 5
+; Max Slice       = 10
+; Max Page        = 4
+; Max CopList     = 10
+; Max PTModule    = 5
+; Max Anim        = 10
+; Max NChunky     = 50
+; Max Chunky      = 20
+; Max Stencil     = 5
+; Max XBSound     = 10
+; /XTRA
+; Simple example of single data items per tag
+
+XINCLUDE "scalos/preferences.ab3"
+
+prefname$ = "Example"   ; Name to refer to PrefsHandle with
+
+
+; First of all we need to allocate a PrefsHandle by name
+; (There is no specific type for a PrefsHandle, as long as it is a long or a pointer)
+*prefhandle.l = AllocPrefsHandle_(&prefname$)
+If *prefhandle
+    NPrint "PrefsHandle successfully allocated"
+
+    ; We need an ID and Tag value to refer to a specific preference with
+    ; so we create that here (or you could just use them in the library calls)
+    ; Remember that the ID must be a long created from 4 ASCII characters
+    ; and the Tag cannot be 0
+    ID.l = Cvl("MAIN")
+    Tag.l = 1
+
+    ; The data we want to store in this preference item is defined now
+    prefdata$ = "This is some example preference data"
+
+    ; Store the preference data in the prefs handle, under the ID and Tag
+    ; The reason we pass a length of Len()+1 is so that the NULL terminator
+    ; for the string will be stored as well
+    SetPreferences_ *prefhandle, ID, Tag, &prefdata$, Len(prefdata$)+1
+
+
+    ; Use FindPreferences_ to check that the item has been stored
+    *prefstruct.PrefsStruct = FindPreferences_(*prefhandle, ID, Tag)
+    If *prefstruct
+        NPrint "Preference data found!"
+        NPrint "Size of string stored = ",Len(prefdata$)+1
+        NPrint "Size of pref data     = ",*prefstruct\ps_Size
+
+        ; And finally, just to show that the preference data was stored,
+        ; we use GetPreferences_ to retrieve the data from memory
+
+        ; Create some memory space to store the returned data
+        Dim temp.b(256)
+        datasize.l = GetPreferences_(*prefhandle, ID, Tag, &temp(0), 256)
+
+        NPrint "Bytes retrieved from pref data = ",datasize
+        If datasize > 0
+            NPrint "Contents of pref data:"
+            NPrint Peek$(&temp(0))
+        End If
+    Else
+        NPrint "Preference data was not stored!"
+    End If
+
+    ; Finally we free the prefs handle
+    FreePrefsHandle_ *prefhandle
+End If
+
+NPrint "Press LMB+RMB to quit"
+While Joyb(0)<>3
+    Delay_ 1
+Wend
+End
+

@@ -1,0 +1,409 @@
+; XTRA
+; Embedded .xtra Header
+; 
+; General Info
+; -------------------------------------------------------
+; ExePath         = ""
+; ExeFile         = ""
+; CreateIcon      = 1
+; Residents       = ""
+; 
+; Compiler
+; -------------------------------------------------------
+; StringBuffer    = 10240
+; MakeSmallest    = 0
+; FuncOptimize    = 0
+; Version         = 0.0.0
+; NumberOfBuilds  = 0
+; 
+; Debugger
+; -------------------------------------------------------
+; CliArgs         = ""
+; StackSize       = 8191
+; RuntimeDebug    = 1
+; DebugInfo       = 0
+; CreateDbgFile   = 0
+; OverflowCheck   = 1
+; AssemblerCheck  = 0
+; InterruptCheck  = 1
+; AutoRun         = 1
+; 
+; Editor
+; -------------------------------------------------------
+; CursorLine      = 1
+; CursorColumn    = 1
+; LabelSearch     = ""
+; LabelRemark     = 0
+; LabelAll        = 0
+; LabelCase       = 0
+; LabelPosition   = 0
+; 
+; Blitz Objects
+; -------------------------------------------------------
+; Max File        = 5
+; Max GadgetList  = 5
+; Max Shape       = 100
+; Max Bank        = 5
+; Max MenuList    = 5
+; Max GTList      = 20
+; Max BitMap      = 10
+; Max Screen      = 5
+; Max IntuiFont   = 5
+; Max Window      = 20
+; Max Palette     = 32
+; Max BlitzFont   = 4
+; Max IconInfo    = 1
+; Max MUIObject   = 50
+; Max AsyncReq    = 4
+; Max Req-Lib     = 5
+; Max GTMenuList  = 5
+; Max Console     = 5
+; Max TCPSock     = 5
+; Max Tape        = 5
+; Max TagList     = 5
+; Max Database    = 16
+; Max Sound       = 10
+; Max MedModule   = 8
+; Max Buffer      = 10
+; Max Queue       = 10
+; Max Sprite      = 20
+; Max Module      = 5
+; Max Slice       = 10
+; Max Page        = 4
+; Max CopList     = 10
+; Max PTModule    = 5
+; Max Anim        = 10
+; Max NChunky     = 50
+; Max Chunky      = 20
+; Max Stencil     = 5
+; Max XBSound     = 10
+; /XTRA
+;         .      [][][][][][][][][][][][][][][][][][][][][][][][][][]
+;         .      []                                                []##
+;~~~~~~~~o~~~~~~~[]  Starfield demo 2 - v0.1                       []##
+;       o     .  []                                                []##
+;     O       .  []  Written in Blitz BASIC II from Acid Software  []##
+; ><>    .    o  []                                                []##
+;     _  o    o__[]  Written by FISH.  (c) FISH 1996               []##
+; __ / \ o  __/  []                                                []##
+;/ _X   \__/ X  _[][][][][][][][][][][][][][][][][][][][][][][][][][]##
+;_/  \/\ \ \/ \/   ####################################################
+
+; This code is copyright by FISH, but special permission has been
+; granted to Acid Software and it's representatives to use this code
+; for demonstration purposes only.
+; You may also use this code, change it and learn from it - but if you
+; use this in a publically distributed program then please give me a
+; small mention somewhere...?  Thanks!! :->
+;
+; ><> ><> ><> ><> ><> ><> ><> ><> ><> ><> ><> ><> ><> ><> ><> ><> ><> ><>
+;
+; Program: Displays a multi-directional 4 layer parallax scrolling starfield
+; using only four sprites for the entire display!!!!!  Each plane of stars
+; is infact a sprite.  Move the joystick to move the stars!!!
+; Uses a fair bit of 68000 for speed!
+;
+; Known bugs: Not really bugs, but there are two small fixes you may
+; wish to try:
+; 1) The spread value used to create an apparant random spread of stars
+;    is a *very* naff.  You may wish to replace it with some code to access
+;    a table of random x positions... unless you can think of an even better
+;    solution?
+; 2) The sprite x position requires 9 bits to store, and the LSB is actually
+;    stored in a different place to the most significant 8 bits.  In a fit
+;    of extreme laziness I decided to ignore the LSB, and thus the stars
+;    have a horizontal resolution of only 160 pixels.  If you fancy adding
+;    some clever boolean and bit shift ops you could bring this bit into
+;    play for slower/smoother scrolling.  (AGA users could even make the
+;    scrolling 8 times more smooth if they wanted!!)
+
+
+SetErr:End:End SetErr
+
+
+DEFTYPE .l  a
+DEFTYPE .l  x,y,cnt
+DEFTYPE .l  bmapx,bmapy
+DEFTYPE .w  *coppnt
+
+; Taken from Blitzlibs:bb2objtypes.bb2
+;
+NEWTYPE.sprite ;size=16
+  _data.l      ;00: NULL if no sprite present, else pointer to sprite data
+  _height.w    ;04: height of sprite, in pixels, plus an extra 1
+  _channels.w  ;06: number of sprite channels required to display sprite
+  _flags.w     ;08: low byte = pix width of sprite, hi bit = 1 if 16 colour sprite
+  _nextoff.w   ;10: difference in bytes between seperate sprites for separate sprite channels
+  _xhandle.w   ;12: horizontal handle for sprite
+  _yhandle.w   ;14: vertical handle for sprite
+End NEWTYPE
+
+
+; -----Init a sprite with star data
+Statement init_star_data {spr.l}
+    UNLK    a4
+    MOVE.l  d0,a0               ; Move address of sprite data to addr reg
+    MOVE.l  d1,a1               ; Move address of speed data to addr reg
+    ; -----Init vars
+    MOVE.l  #48,d0              ; Start line of sprites on display
+    MOVE.l  #49,d1              ; Stop line of sprite on display
+    MOVE.l  #23,d2              ; Counter = 24 times
+    MOVE.l  #0,d3               ; Spread value
+    ; -----Main loop
+loop1:
+    MOVE.b  d0,(a0)             ; Set vert start position
+    ADD.l   #1,a0               ; ----Next byte----
+    MOVE.b  d3,(a0)             ; Set horiz start position
+    ADD.l   #1,a0               ; ----Next byte----
+    MOVE.b  d1,(a0)             ; Set vertical stop pos
+    ADD.l   #1,a0               ; ----Next byte----
+    MOVE.b  #0,(a0)             ; Set byte to 0
+    ADD.l   #1,a0               ; ----Next byte----
+
+    MOVE.l  #$80000000,d4       ; Sprite image 2 planes (!!change this!!)
+    MOVE.l  d4,(a0)             ; Set sprite image
+    ADD.l   #4,a0               ; ----Next sprite----
+
+    ADD.l   #8,d0               ; Vert start pos += 8
+    ADD.l   #8,d1               ; Vert stop pos += 8
+    ADD.b   #179,d3             ; Next spread value (17 seems good)
+    DBF     d2,loop1
+
+    RTS
+End Statement
+
+
+; -----Scrolls a plane of stars (one sprite) by a speed horizontally
+Statement scroll_stars_x {spr.l,speed.l}
+    UNLK    a4
+    MOVE.l  d0,a0               ; Move address of sprite data to addr reg
+    MOVE.l  d1,d3               ; Move speed to d3 reg
+    ADD.l   #1,a0               ; Push sprite data addr to point to horiz pos
+    ; -----Init vars
+    MOVE.l  #23,d2              ; Counter = 24 times
+    ; -----Main loop
+loop2:
+    MOVE.b  (a0),d0             ; Get current horizonal pos
+    ADD.b   d3,d0               ; Add speed
+    MOVE.b  d0,(a0)             ; Store new horiz pos
+
+    ADD.l   #8,a0               ; Next sprite image
+    DBF     d2,loop2
+
+    RTS
+End Statement
+
+
+; -----Scrolls a plane of stars (one sprite) down by a speed.
+Statement scroll_stars_y_down {spr.l,speed.l}
+    UNLK    a4
+    MOVE.l  d0,a0               ; Move address of sprite data to addr reg
+    MOVE.l  a0,a2               ; Copy of the sprite data address
+    MOVE.l  d1,d3               ; Move speed to d3 reg
+    ; -----Set this for later
+    MOVE.b  (a0),d0
+    ADD.b   d3,d0
+    AND.b   #$f8,d0
+    MOVE.b  (a0),d1
+    AND.b   #$f8,d1
+    SUB.b   d1,d0
+    MOVE.b  d0,temp_data1
+    ; -----Init vars
+    MOVE.l  #23,d2              ; Counter = 24 times
+    ; -----Main loop
+loop3:
+    MOVE.b  (a0),d0             ; Get current vert start pos
+    ADD.b   d3,d0               ;   Add speed
+    AND.b   #$07,d0             ;   Mask out all but lower 3 bits
+    MOVE.b  (a0),d4             ; Get current vert start pos
+    AND.b   #$f8,d4             ;   Mask out lower 3 bits
+    ADD.b   d4,d0               ;   Add the d0
+    MOVE.b  d0,(a0)             ; Store new vert start pos
+    ADD.l   #2,a0               ; ----Move to vert stop pos
+    ADD.b   #1,d0               ; Add 1 to vert start pos
+    MOVE.b  d0,(a0)             ; Store new vert stop pos
+
+    ADD.l   #6,a0               ; Next sprite image
+    DBF     d2,loop3
+
+    ; -----Test if we need to move images down
+    MOVE.b  temp_data1,d0       ; Get vert pos
+    CMP.b   #0,d0               ; Zero...?
+    BEQ     lab1                ; ...if not - leave
+    ; -----Set address of image 24
+    MOVE.l  a2,a0               ; Set addr of sprite data
+    ADD.l   #8*23+1,a0          ;   Add offset for image 24 + horiz pos
+    ; -----Store last image horiz pos in temp
+    MOVE.b  (a0),d0             ; Get horiz pos at image 24
+    MOVE.b  d0,temp_data1       ;   Store in temp
+    ; -----Init vars
+    MOVE.l  a0,a1               ; a0=source , a1=dest
+    SUB.l   #8,a0               ; Set source to image 23
+    MOVE.l  #22,d2              ; Counter 23 times
+    ; -----Loop
+loop4:
+    MOVE.b  (a0),d0             ; Get horiz pos
+    MOVE.b  d0,(a1)             ; Store in next image
+    SUB.l   #8,a0               ; Prev source image
+    SUB.l   #8,a1               ; Prev dest image
+    DBF     d2,loop4
+    ; -----Get temp image and place in first image
+    MOVE.l  a2,a0               ; Get addr of sprite data
+    ADD.l   #1,a0               ; Offset for horiz pos
+    MOVE.b  temp_data1,d0       ; Get temp data
+    MOVE.b  d0,(a0)             ; Place in first image
+
+lab1:
+    RTS
+
+temp_data1:
+    Dc.l    0
+End Statement
+
+
+; -----Scrolls a plane of stars (one sprite) up by a speed.
+Statement scroll_stars_y_up {spr.l,speed.l}
+    UNLK    a4
+    MOVE.l  d0,a0               ; Move address of sprite data to addr reg
+    MOVE.l  a0,a2               ; Copy of the sprite data address
+    MOVE.l  d1,d3               ; Move speed to d3 reg
+    ; -----Set this for later
+    MOVE.b  (a0),d0
+    ADD.b   d3,d0
+    AND.b   #$f8,d0
+    MOVE.b  (a0),d1
+    AND.b   #$f8,d1
+    SUB.b   d1,d0
+    MOVE.b  d0,temp_data2
+    ; -----Init vars
+    MOVE.l  #23,d2              ; Counter = 24 times
+    ; -----Main loop
+loop5:
+    MOVE.b  (a0),d0             ; Get current vert start pos
+    ADD.b   d3,d0               ;   Add speed
+    AND.b   #$07,d0             ;   Mask out all but lower 3 bits
+    MOVE.b  (a0),d4             ; Get current vert start pos
+    AND.b   #$f8,d4             ;   Mask out lower 3 bits
+    ADD.b   d4,d0               ;   Add the d0
+    MOVE.b  d0,(a0)             ; Store new vert start pos
+    ADD.l   #2,a0               ; ----Move to vert stop pos
+    ADD.b   #1,d0               ; Add 1 to vert start pos
+    MOVE.b  d0,(a0)             ; Store new vert stop pos
+
+    ADD.l   #6,a0               ; Next sprite image
+    DBF     d2,loop5
+
+    ; -----Test if we need to move images down
+    MOVE.b  temp_data2,d0       ; Get vert pos
+    CMP.b   #0,d0               ; Zero...?
+    BEQ     lab2                ; ...if not - leave
+    ; -----Set address of image 24
+    MOVE.l  a2,a0               ; Set addr of sprite data
+    ADD.l   #1,a0               ;   Add offset for image 1 + horiz pos
+    ; -----Store last image horiz pos in temp
+    MOVE.b  (a0),d0             ; Get horiz pos at image 1
+    MOVE.b  d0,temp_data2       ;   Store in temp
+    ; -----Init vars
+    MOVE.l  a0,a1               ; a0=source , a1=dest
+    ADD.l   #8,a0               ; Set source to image 2
+    MOVE.l  #22,d2              ; Counter 23 times
+    ; -----Loop
+loop6:
+    MOVE.b  (a0),d0             ; Get horiz pos
+    MOVE.b  d0,(a1)             ; Store in next image
+    ADD.l   #8,a0               ; Prev source image
+    ADD.l   #8,a1               ; Prev dest image
+    DBF     d2,loop6
+    ; -----Get temp image and place in first image
+    MOVE.l  a2,a0               ; Get addr of sprite data
+    ADD.l   #8*23+1,a0          ; Offset for horiz pos in image 24
+    MOVE.b  temp_data2,d0       ; Get temp data
+    MOVE.b  d0,(a0)             ; Place in first image
+
+lab2:
+    RTS
+
+temp_data2:
+    Dc.l    0
+End Statement
+
+
+; -----This procedure figures out if it should call the up or down
+; -----routines above - so you don't have to!!! :->  This means we
+; -----have a scroll_stars_x and a scroll_stars_y procedure with
+; -----an similar parameter template!!  Handy!!
+Statement scroll_stars_y {spr.l,speed.l}
+    If speed<0
+        scroll_stars_y_up {spr,speed}
+    Else
+        scroll_stars_y_down {spr,speed}
+    EndIf
+End Statement
+
+
+; -----Displays a sprite (needs to fool Blitz into thinking the sprite
+; -----is 1 pixel high because Blitz cannot use multi-image sprites!)
+Statement display_star { spr.l }
+    DEFTYPE .sprite *sprpnt
+    DEFTYPE .l      a
+    *sprpnt=Addr Sprite (spr) : a=*sprpnt\_height : *sprpnt\_height=1
+    DisplaySprite 0,spr,160,0,spr : *sprpnt\_height=a
+End Statement
+
+
+
+;----------------------------------------------------------
+; MAIN CODE
+;----------------------------------------------------------
+
+WBStartup : NewPaletteMode On : NoCli
+BitMap 0,320,200,4 : InitPalette 0,32
+BitMap 1,320, 56,4 : LoadBitMap 1,"data/starfield_panel.iff",1
+
+BLITZ
+Gosub init_display
+
+; -----Setup the sprites with stars and display them!
+InitShape 0,16,256,2
+GetaSprite 0,0 : GetaSprite 1,0 : GetaSprite 2,0 : GetaSprite 3,0
+init_star_data { Peek.l (Addr Sprite(0)) } : display_star{0}
+init_star_data { Peek.l (Addr Sprite(1)) } : display_star{1}
+init_star_data { Peek.l (Addr Sprite(2)) } : display_star{2}
+init_star_data { Peek.l (Addr Sprite(3)) } : display_star{3}
+DisplayBitMap 0,0,0,0
+
+; -----Move joystick and press fire to exit
+Repeat
+    VWait
+    x=Joyx(1) : y=Joyy(1)
+
+    ; -----Move each plane of stars (each sprite)
+    For a=0 To 3
+        scroll_stars_x{ Peek.l (Addr Sprite(a)) , x*(1 LSL a) }
+        scroll_stars_y{ Peek.l (Addr Sprite(a)) , y*(1 LSL a) }
+    Next
+Until Joyb(0)
+AMIGA
+
+Free BitMap 0
+Free Palette 0
+End
+
+
+
+;----------------------------------------------------------
+; SUBROUTINE CODE
+;----------------------------------------------------------
+
+BLITZ
+
+init_display:
+  PalRGB 0,17,$6,$6,$6 : PalRGB 0,18,$0,$0,$5 : PalRGB 0,19,$0,$0,$2
+  PalRGB 0,21,$a,$a,$a : PalRGB 0,22,$0,$0,$5 : PalRGB 0,23,$0,$0,$2
+  InitCopList 0, 40,200,$404,8,32,16
+  InitCopList 1,242, 56,$404,8,16,16
+  VWait : CreateDisplay 0,1
+  DisplayBitMap 0,0 : DisplayPalette 0,0,0
+  DisplayBitMap 1,1 : DisplayPalette 1,1,0
+Return
+

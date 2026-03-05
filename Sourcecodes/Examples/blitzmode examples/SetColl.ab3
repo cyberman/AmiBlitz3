@@ -1,0 +1,122 @@
+; XTRA
+; Embedded .xtra Header
+; 
+; General Info
+; -------------------------------------------------------
+; ExePath         = ""
+; ExeFile         = ""
+; CreateIcon      = 1
+; Residents       = ""
+; 
+; Compiler
+; -------------------------------------------------------
+; StringBuffer    = 10240
+; MakeSmallest    = 0
+; FuncOptimize    = 0
+; Version         = 0.0.0
+; NumberOfBuilds  = 2
+; 
+; Debugger
+; -------------------------------------------------------
+; CliArgs         = ""
+; StackSize       = 8191
+; RuntimeDebug    = 1
+; DebugInfo       = 0
+; CreateDbgFile   = 0
+; OverflowCheck   = 1
+; AssemblerCheck  = 0
+; InterruptCheck  = 1
+; AutoRun         = 1
+; 
+; Editor
+; -------------------------------------------------------
+; CursorLine      = 26
+; CursorColumn    = 10
+; LabelSearch     = ""
+; LabelRemark     = 0
+; LabelAll        = 0
+; LabelCase       = 0
+; LabelPosition   = 0
+; 
+; Blitz Objects
+; -------------------------------------------------------
+; Max File        = 5
+; Max GadgetList  = 5
+; Max Shape       = 100
+; Max Bank        = 5
+; Max MenuList    = 5
+; Max GTList      = 20
+; Max BitMap      = 10
+; Max Screen      = 5
+; Max IntuiFont   = 5
+; Max Window      = 20
+; Max Palette     = 32
+; Max BlitzFont   = 4
+; Max IconInfo    = 1
+; Max MUIObject   = 50
+; Max AsyncReq    = 4
+; Max Req-Lib     = 5
+; Max GTMenuList  = 5
+; Max Console     = 5
+; Max TCPSock     = 5
+; Max Tape        = 5
+; Max TagList     = 5
+; Max Database    = 16
+; Max Sound       = 10
+; Max MedModule   = 8
+; Max Buffer      = 10
+; Max Queue       = 10
+; Max Sprite      = 20
+; Max Module      = 5
+; Max Slice       = 10
+; Max Page        = 4
+; Max CopList     = 10
+; Max PTModule    = 5
+; Max Anim        = 10
+; Max NChunky     = 50
+; Max Chunky      = 20
+; Max Stencil     = 5
+; Max XBSound     = 10
+; /XTRA
+; *** SetColl example
+NoCli
+BitMap 0,320,256,4
+BitMapOutput 0
+
+Boxf 0,0,7,7,3
+GetaShape 0,0,0,8,8
+GetaSprite 0,0
+Free Shape 0
+
+Cls
+BLITZ
+Slice 0,44,4
+Show 0
+For A = 1 To 100
+  Plot Rnd(320),Rnd(256),Rnd(14)+1
+Next A
+
+Boxf 80,100,250,200,15
+
+SetColl 15,4
+
+X = 50: Y = 50
+X1 = 4 : Y1 = 4
+Repeat
+  VWait 2
+
+  DoColl
+  Locate 0,0
+  If PColl(0)
+    Print "Collision"
+  Else
+    Print " "
+  EndIf
+  ShowSprite 0,X,Y,1
+  Let X+X1 : Let Y+Y1
+  If X<=10 OR X>=300 Then X1=-X1
+  If Y<=20 OR Y>=200 Then Y1=-Y1
+Until Joyb(0) > 0
+
+; *** Return to IDE
+End

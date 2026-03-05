@@ -1,0 +1,115 @@
+;
+; AGA Checker-Scape
+;
+; (c) Pink/Abyss aka Manfred Linzner
+; EMail: Manfred.Linzner@munich.netsurf.de
+;
+; Cleaned up a little by Ted Bailey - 30/7/96
+;
+;
+; Info: Drawing realtime polygons with a precalced table.
+;
+
+SetErr:End:End SetErr
+
+NEWTYPE.vek
+  x0.w:y0:x1:y1:x2:y2:x3:y3
+End NEWTYPE
+
+Dim si(1440),co(1440),xt.w(16000),yt.w(16000),ct.w(16000)
+z.w=0:q.w=0
+
+For a=0 To 360*4
+  si(a)=Sin(a/180*Pi)
+  co(a)=Cos(a/180*Pi)
+Next a
+
+
+BitMap 1,320,256,8
+BitMap 0,320,256,8
+InitShape 0,256,95,8
+
+For a=1 To 127
+  AGAPalRGB 0,a,0,128-a,128-a
+Next
+For a=127 To 255
+  AGAPalRGB 0,a,$ff-a+1,$ff-a+1,$ff-a+1
+Next a
+AGAPalRGB 0,0,0,0,0
+
+InitCopList 0,44,224,$13008,0,256,0
+
+VWait 50:BLITZ
+
+CreateDisplay 0
+
+DisplayBitMap 0,0:DisplayPalette 0,0
+
+BitMapOutput 0
+
+For a=0 To 1
+  BitMapOutput a
+  Colour 7
+  NPrint "   Realtime Lightsourced-Checkerscape"
+  NPrint  "            (c) PiNK/abYSs       "
+  Locate 0,27
+  Colour 8
+  NPrint "          256 Colors, 200 Faces     "
+Next
+
+.calctable
+For q=0 To 359 Step 10
+  z=500
+  For y.b=-40 To 40 Step 8
+    z=z-30
+    w=0
+    i.w=co(q+y+40)*19
+    For x.b=-80 To 80 Step 8
+    w+25:If w>359 Then w=0
+
+    o.q=si(y+w+80+i)*i
+    y1=y+o-30
+
+    x1=x ASL 8
+    y1=y1 ASL 8
+
+    xt=x1/z+165
+    yt=y1/(z)+125
+
+    tz+1
+    If xt>319 Then xt=319
+    If xt<0 Then xt=0
+    If yt>255 Then yt=255
+    If yt<0 Then yt=0
+
+    xt(tz)=xt
+    yt(tz)=yt
+    ct(tz)=(o/20)*62+64
+    Next x
+  Next y
+Next q
+
+.drawfaces
+db.b=0
+in.w=0
+Repeat
+  VWait
+  DisplayBitMap 0,db:db=1-db
+  Use BitMap db:Block 0,32,75
+
+  qw.b=0
+  For y.b=1 To 10
+    in+1
+    For x.b=1 To 20
+      v.vek\x0=xt(in),yt(in),xt(in+1),yt(in+1),xt(in+22),yt(in+22),xt(in+21),yt(in+21)
+      qw.b=1-qw
+      If qw Then Polyf 4,v,ct(in) Else Polyf 4,v,ct(in)+128
+      in+1
+    Next
+    qw.b=1-qw
+  Next
+
+  in=in+21:If in>8200 Then in=0
+Until Joyb(0)
+
+End

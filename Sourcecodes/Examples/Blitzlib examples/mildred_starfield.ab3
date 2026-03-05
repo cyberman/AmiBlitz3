@@ -30,8 +30,8 @@
 ; 
 ; Editor
 ; -------------------------------------------------------
-; CursorLine      = 96
-; CursorColumn    = 11
+; CursorLine      = 130
+; CursorColumn    = 14
 ; LabelSearch     = ""
 ; LabelRemark     = 0
 ; LabelAll        = 0
@@ -46,12 +46,12 @@
 ; Max Bank        = 5
 ; Max MenuList    = 5
 ; Max GTList      = 20
-; Max Palette     = 4
 ; Max BitMap      = 10
 ; Max Screen      = 5
 ; Max IntuiFont   = 5
-; Max BlitzFont   = 4
 ; Max Window      = 20
+; Max Palette     = 4
+; Max BlitzFont   = 4
 ; Max IconInfo    = 1
 ; Max MUIObject   = 50
 ; Max AsyncReq    = 4
@@ -61,6 +61,7 @@
 ; Max TCPSock     = 5
 ; Max Tape        = 5
 ; Max TagList     = 5
+; Max Database    = 16
 ; Max Sound       = 10
 ; Max MedModule   = 8
 ; Max Buffer      = 10
@@ -123,7 +124,7 @@ MReservec2pWindows 1                ; Tell it we only need one c2p display.
 
 InitBank 0,320*256,$10000
 CludgeBitMap 2,320,256,8,Bank(0)
-LoadBitMap 2,"Logo.IFF"
+LoadBitMap 2,"data/Logo.IFF"
 MBitmap 1,320,256                   ; This will contain our chunky buffer.
 
 MPlanar16ToBitmap 1,Bank(0),320,256,320,256
@@ -207,4 +208,4 @@ End                                 ; End of program.
 
 Even                                ; put following data on an even address. Minor speed increase.
 .incpal
-IncBin "Logo.PAL" ; Include our palette information in the binary.
+IncBin "data/Logo.PAL" ; Include our palette information in the binary.
