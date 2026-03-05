@@ -1,0 +1,296 @@
+; XTRA
+; Embedded .xtra Header
+; 
+; General Info
+; -------------------------------------------------------
+; ExePath         = ""
+; ExeFile         = ""
+; CreateIcon      = 1
+; Residents       = "all.res"
+; 
+; Compiler
+; -------------------------------------------------------
+; StringBuffer    = 10240
+; MakeSmallest    = 0
+; FuncOptimize    = 0
+; Version         = 0.0.0
+; NumberOfBuilds  = 76
+; 
+; Debugger
+; -------------------------------------------------------
+; CliArgs         = ""
+; StackSize       = 8191
+; RuntimeDebug    = 1
+; DebugInfo       = 0
+; CreateDbgFile   = 0
+; OverflowCheck   = 1
+; AssemblerCheck  = 0
+; InterruptCheck  = 1
+; AutoRun         = 1
+; 
+; Editor
+; -------------------------------------------------------
+; CursorLine      = 130
+; CursorColumn    = 1
+; LabelSearch     = ""
+; LabelRemark     = 0
+; LabelAll        = 0
+; LabelCase       = 0
+; LabelPosition   = 0
+; 
+; Blitz Objects
+; -------------------------------------------------------
+; Max File        = 5
+; Max GadgetList  = 5
+; Max Shape       = 100
+; Max Bank        = 5
+; Max MenuList    = 5
+; Max GTList      = 20
+; Max BitMap      = 10
+; Max Screen      = 5
+; Max IntuiFont   = 5
+; Max Window      = 20
+; Max Palette     = 32
+; Max BlitzFont   = 4
+; Max IconInfo    = 1
+; Max MUIObject   = 50
+; Max AsyncReq    = 4
+; Max Req-Lib     = 5
+; Max GTMenuList  = 5
+; Max Console     = 5
+; Max TCPSock     = 5
+; Max Tape        = 5
+; Max TagList     = 5
+; Max Database    = 16
+; Max Sound       = 10
+; Max MedModule   = 8
+; Max Buffer      = 10
+; Max Queue       = 10
+; Max Sprite      = 20
+; Max Module      = 5
+; Max Slice       = 10
+; Max Page        = 4
+; Max CopList     = 10
+; Max PTModule    = 5
+; Max Anim        = 10
+; Max NChunky     = 50
+; Max Chunky      = 20
+; Max Stencil     = 5
+; Max XBSound     = 10
+; /XTRA
+;*******************************************************************
+; WritePixelArray8 – Vollständiges Beispiel in AmiBlitz3
+;
+; Öffnet einen Intuition-Screen (4 Bit / 16 Farben),
+; baut einen TempRastPort auf und zeichnet ein 16x16 Pixelbild
+; mit WritePixelArray8 aus der graphics.library.
+;
+; Getestet mit AmiBlitz3 unter AmigaOS 3.x
+;*******************************************************************
+
+; -----------------------------------------------------------------
+; Konstanten
+; -----------------------------------------------------------------
+#SCR_W    = 320
+#SCR_H    = 256
+#DEPTH    = 4        ; 4 Bitplanes = 16 Colors
+
+#IMG_W    = 16
+#IMG_H    = 16
+
+
+; -----------------------------------------------------------------
+; Globale Variablen
+; -----------------------------------------------------------------
+DEFTYPE.Screen   *scr
+DEFTYPE.Window   *win
+DEFTYPE.ViewPort *vport
+DEFTYPE.RastPort *rp
+DEFTYPE.RastPort  TempRP
+DEFTYPE.BitMap   *TempBitMap
+DEFTYPE.l         TempBitMapSize
+
+; -----------------------------------------------------------------
+; Hauptprogramm
+; -----------------------------------------------------------------
+
+WBStartup
+
+; Screen öffnen (Intuition übernimmt AllocBitMap etc.)
+Screen 0, 0,0, #SCR_W,#SCR_H, #DEPTH,0,"WritePixelArray8 Demo", 1,0
+*scr = PeekL(Addr Screen(0))
+If *scr = 0
+  NPrint "Error: Could not open screen!"
+  End
+EndIf
+Use Screen 0
+
+; open window on screen
+Window 0,0,0,#SCR_W,#SCR_H,#WFLG_ACTIVATE|#WFLG_SIMPLE_REFRESH|#WFLG_GIMMEZEROZERO|#WFLG_NOCAREREFRESH|#WFLG_BORDERLESS,"",1,0
+*win = PeekL(Addr Window(0))
+If *win = 0
+  NPrint "Error: Could not open window!"
+  CloseScreen 0
+  End
+EndIf
+
+; -----------------------------------------------------------------
+; Build a TempRastPort
+; WritePixelArray8 needs a temporary Rastport to store the converted data in
+; the rastport must have a bitmap with at least one pixel line
+; The x size will be calculated as: ((w+15) LSL 4) LSR 1
+; With kickstart version 45 does not require that anymore
+; -----------------------------------------------------------------
+If KickVersion < 45
+  If KickVersion < 39
+    NPrint "V39 is needed for AllocBitMap()"
+    Gosub Cleanup
+    End
+  EndIf
+
+  TempBitMapSize = ((#IMG_W + 15) LSR 4) LSL 4
+  *TempBitMap = AllocBitMap_(TempBitMapSize,1,#DEPTH,#BMF_CLEAR,Null)
+  If *TempBitMap = 0
+    NPrint "Error: Could not allocate temporary bitmap!"
+    Gosub Cleanup
+    End
+  EndIf
+  ; Create temporary RastPort
+  InitRastPort_ &TempRP
+  TempRP\BitMap = *TempBitMap
+  TempRP\Layer = Null
+EndIf
+
+; -----------------------------------------------------------------
+; Set Colors (16 Farben, easy example)
+; -----------------------------------------------------------------
+*vport = *scr\ViewPort
+
+; SetRGB4(ViewPort, Index, R, G, B) – each 0..15
+SetRGB4_ *vport, 0,  0,  0,  0   ; 0 = Schwarz
+SetRGB4_ *vport, 1, 15,  0,  0   ; 1 = Rot
+SetRGB4_ *vport, 2,  0, 15,  0   ; 2 = Grün
+SetRGB4_ *vport, 3,  0,  0, 15   ; 3 = Blau
+SetRGB4_ *vport, 4, 15, 15,  0   ; 4 = Gelb
+SetRGB4_ *vport, 5, 15,  0, 15   ; 5 = Magenta
+SetRGB4_ *vport, 6,  0, 15, 15   ; 6 = Cyan
+SetRGB4_ *vport, 7, 15, 15, 15   ; 7 = Weiß
+SetRGB4_ *vport, 8,  8,  0,  0   ; 8 = Dunkelrot
+SetRGB4_ *vport, 9,  0,  8,  0   ; 9 = Dunkelgrün
+SetRGB4_ *vport,10,  0,  0,  8   ;10 = Dunkelblau
+SetRGB4_ *vport,11,  8,  8,  0   ;11 = Olivgelb
+SetRGB4_ *vport,12,  8,  0,  8   ;12 = Dunkellila
+SetRGB4_ *vport,13,  0,  8,  8   ;13 = Dunkelcyan
+SetRGB4_ *vport,14, 12,  8,  4   ;14 = Braun
+SetRGB4_ *vport,15,  4,  4,  4   ;15 = Dunkelgrau
+
+; -----------------------------------------------------------------
+; Call WritePixelArray8 
+; -----------------------------------------------------------------
+*rp = *win\RPort
+
+For c.b = 0 To 15
+  ix.w = 0 + c * (#IMG_W + 1)
+  iy.w = 0;+ c * (#IMG_H + 1)
+  written.l = WritePixelArray8_(*rp, ix, iy, ix + #IMG_W - 1, iy + #IMG_H - 1, ?PixelDataSmiley, &TempRP)
+  WLocate 0,#IMG_H : written
+  VWait 1
+Next c
+
+; -----------------------------------------------------------------
+; wait until mouse pressed
+; -----------------------------------------------------------------
+WLocate 0, #IMG_H : NPrint "Finished, press mouse!"
+FlushEvents
+MouseWait
+
+; -----------------------------------------------------------------
+; cleanup
+; -----------------------------------------------------------------
+Gosub Cleanup
+End
+
+Cleanup:
+  If *TempBitMap Then FreeBitMap_ *TempBitMap
+
+  CloseWindow 0
+  CloseScreen 0
+Return
+
+; -----------------------------------------------------------------
+; Pixeldaten 16×16 Farbindizes (Bytes, Wert 0-15)
+; -----------------------------------------------------------------
+PixelDataDemo:
+  Dc.b 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15   ; Zeile  0 – Regenbogen vorwärts
+  Dc.b 15,14,13,12,11,10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0  ; Zeile  1 – Regenbogen rückwärts
+  Dc.b 0,15, 0,15, 0,15, 0,15, 0,15, 0,15, 0,15, 0,15   ; Zeile  2 – Schachbrett A
+  Dc.b 15, 0,15, 0,15, 0,15, 0,15, 0,15, 0,15, 0,15, 0  ; Zeile  3 – Schachbrett B
+  Dc.b 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3   ; Zeile  4 – einfarbig Blau
+  Dc.b 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8   ; Zeile  5 – Paarstreifen aufsteigend
+  Dc.b 8, 8, 7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1   ; Zeile  6 – Paarstreifen absteigend
+  Dc.b 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15   ; Zeile  7 – Diagonale
+  Dc.b 1, 0, 3, 2, 5, 4, 7, 6, 9, 8,11,10,13,12,15,14   ; Zeile  8 – XOR-Muster
+  Dc.b 2, 3, 0, 1, 6, 7, 4, 5,10,11, 8, 9,14,15,12,13   ; Zeile  9
+  Dc.b 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5   ; Zeile 10 – Rahmen oben (Magenta)
+  Dc.b 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5   ; Zeile 11 – Rahmen Seiten
+  Dc.b 5, 0, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 0, 5   ; Zeile 12 – innerer Rahmen (Cyan)
+  Dc.b 5, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 5   ; Zeile 13
+  Dc.b 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5   ; Zeile 14
+  Dc.b 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5   ; Zeile 15 – Rahmen unten (Magenta)
+
+;
+;  ## ## ## ## .. .. oo cc cc oo .. .. ## ## ## ##   Zeile  0
+;  ## ## .. .. oo cc mm YY YY mm cc oo .. .. ## ##   Zeile  1
+;  ## .. oo cc mm YY YY YY YY YY YY mm cc oo .. ##   Zeile  2
+;  .. oo cc mm YY YY YY YY YY YY YY YY mm cc oo ..   Zeile  3
+;  .. oo EE EE WW WW yy YY YY yy WW WW EE EE oo ..   Zeile  4
+;  .. oo EE EE WW BB yy YY YY yy WW BB EE EE oo ..   Zeile  5
+;  .. oo mm tt YY YY YY YY YY YY YY YY tt mm oo ..   Zeile  6
+;  .. oo YY YY YY YY YY YY YY YY YY YY YY YY oo ..   Zeile  7
+;  .. oo yy RR YY YY YY YY YY YY YY YY RR yy oo ..   Zeile  8
+;  .. oo ss BB MM YY YY YY YY YY YY MM BB ss oo ..   Zeile  9
+;  .. oo ss zz BB MM MM YY YY MM MM BB zz ss oo ..   Zeile 10
+;  .. oo ss zz zz BB MM MM MM MM BB zz zz ss oo ..   Zeile 11
+;  .. oo oo ss zz zz zz zz zz zz zz zz ss oo oo ..   Zeile 12
+;  ## .. oo oo ss ss ss ss ss ss ss ss oo oo .. ##   Zeile 13
+;  ## ## .. .. oo oo oo oo oo oo oo oo .. .. ## ##   Zeile 14
+;  ## ## ## ## .. .. .. .. .. .. .. .. ## ## ## ##   Zeile 15
+
+PixelDataSmiley:
+  Dc.b 10,10,10,10, 3, 3,15, 6, 6,15, 3, 3,10,10,10,10  ; Zeile  0
+  Dc.b 10,10, 3, 3,15, 6, 5, 4, 4, 5, 6,15, 3, 3,10,10  ; Zeile  1
+  Dc.b 10, 3,15, 6, 5, 4, 4, 4, 4, 4, 4, 5, 6,15, 3,10  ; Zeile  2
+  Dc.b  3,15, 6, 5, 4, 4, 4, 4, 4, 4, 4, 4, 5, 6,15, 3  ; Zeile  3
+  Dc.b  3,15, 8, 8, 7, 7,11, 4, 4,11, 7, 7, 8, 8,15, 3  ; Zeile  4
+  Dc.b  3,15, 8, 8, 7, 0,11, 4, 4,11, 7, 0, 8, 8,15, 3  ; Zeile  5
+  Dc.b  3,15, 5,13, 4, 4, 4, 4, 4, 4, 4, 4,13, 5,15, 3  ; Zeile  6
+  Dc.b  3,15, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,15, 3  ; Zeile  7
+  Dc.b  3,15,11, 1, 4, 4, 4, 4, 4, 4, 4, 4, 1,11,15, 3  ; Zeile  8
+  Dc.b  3,15, 9, 0,14, 4, 4, 4, 4, 4, 4,14, 0, 9,15, 3  ; Zeile  9
+  Dc.b  3,15, 9,12, 0,14,14, 4, 4,14,14, 0,12, 9,15, 3  ; Zeile 10
+  Dc.b  3,15, 9,12,12, 0,14,14,14,14, 0,12,12, 9,15, 3  ; Zeile 11
+  Dc.b  3,15,15, 9,12,12,12,12,12,12,12,12, 9,15,15, 3  ; Zeile 12
+  Dc.b 10, 3,15,15, 9, 9, 9, 9, 9, 9, 9, 9,15,15, 3,10  ; Zeile 13
+  Dc.b 10,10, 3, 3,15,15,15,15,15,15,15,15, 3, 3,10,10  ; Zeile 14
+  Dc.b 10,10,10,10, 3, 3, 3, 3, 3, 3, 3, 3,10,10,10,10  ; Zeile 15
+
+PixelDataCircle:
+  Dc.b 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0  ; Zeile  0
+  Dc.b 0, 0, 0, 0, 1, 1, 7, 7, 7, 7, 1, 1, 0, 0, 0, 0  ; Zeile  1
+  Dc.b 0, 0, 0, 1, 7, 7, 7, 7, 7, 7, 7, 7, 1, 0, 0, 0  ; Zeile  2
+  Dc.b 0, 0, 1, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 1, 0, 0  ; Zeile  3
+  Dc.b 0, 0, 1, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 1, 0, 0  ; Zeile  4
+  Dc.b 0, 1, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 1, 0  ; Zeile  5
+  Dc.b 0, 1, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 1, 0  ; Zeile  6
+  Dc.b 0, 1, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 1, 0  ; Zeile  7
+  Dc.b 0, 1, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 1, 0  ; Zeile  8
+  Dc.b 0, 1, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 1, 0  ; Zeile  9
+  Dc.b 0, 0, 1, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 1, 0, 0  ; Zeile 10
+  Dc.b 0, 0, 1, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 1, 0, 0  ; Zeile 11
+  Dc.b 0, 0, 0, 1, 7, 7, 7, 7, 7, 7, 7, 7, 1, 0, 0, 0  ; Zeile 12
+  Dc.b 0, 0, 0, 0, 1, 1, 7, 7, 7, 7, 1, 1, 0, 0, 0, 0  ; Zeile 13
+  Dc.b 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0  ; Zeile 14
+  Dc.b 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0  ; Zeile 15
+
+  Dc.b 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0  ; additional space
+
