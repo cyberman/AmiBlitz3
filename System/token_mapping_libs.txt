@@ -5,7 +5,7 @@ dhandlerlib                    ;MOVEA
 Xbaudiolib                     ;XBDiskPlay
 * unused ID5 *                 ;
 * unused ID6 *                 ;
-LotanCP2                       ;c2p
+LotanC2P                       ;c2p
 EFMUILib                       ;MUIObject
 BDGfxLib                       ;FindColor
 BDChunkyLib                    ;NChunky
