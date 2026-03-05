@@ -1,28 +1,6 @@
 @DATABASE FPULIB
-@Author Sven Drï¿½ge
+@Author Sven Dröge
 @$VER: FPULIB V1.0 (31.05.2007)
-
-@NODE OPTIMIZE "FPULIB"
-
-@{fg shine}OPTIMIZE [mode]@{fg text}
---------------------------------------------------------------------------------
-Syntax: OPTIMIZE [mode]
-
-mode:
-1 .. Integer optimizations (68020+ only)
-2 .. FPU optimizations (fpu only)
-4 .. newsyntax mode 
-8 .. optimize branches or jumps
-
-You may combine different modes using the OR-Operator, 
-
-e.g.
-@{fg shine}OPTIMIZE 1|4@{fg text} means: switch on newsyntax mode and turn on integer optimizations
-or 
-@{fg shine}OPTIMIZE 1|2@{fg text} means: turn on integer and fpu optimizations
-
-@ENDNODE optimize
-
 
 @NODE MAIN "FPULIB"
 
@@ -33,7 +11,6 @@ or
 
                                Command Index                                
 
-                                @{" OPTIMIZE " link optimize}
 
 @ENDNODE MAIN
 

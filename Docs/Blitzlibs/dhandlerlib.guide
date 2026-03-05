@@ -159,16 +159,16 @@ Put an address on the stack
 
 @ENDNODE PEA
 
-@NODE rese "SYSTEM2"
+@NODE RESET "SYSTEM2"
 
-@{fg shine}Statement: rese@{fg text}
+@{fg shine}Statement: RESET@{fg text}
 --------------------------------------------------------------------------------
 Modes  : 
-Syntax : rese 
+Syntax : RESET 
 
 Reset peripheral device (carefull!)
 
-@ENDNODE rese
+@ENDNODE RESET
 
 @NODE ROL "SYSTEM2"
 
@@ -1035,29 +1035,29 @@ interrupts should restore currently used object settings.
 @ENDNODE Used
 
 
-@NODE Runerrson;name "SYSTEM2"
+@NODE RunErrsOn "SYSTEM2"
 
-@{fg shine}Statement: Runerrson ;name@{fg text}
+@{fg shine}Statement: RunErrsOn@{fg text}
 --------------------------------------------------------------------------------
 Modes  : 
-Syntax : Runerrson ;name 
+Syntax : RunErrsOn
 
 
 These two new compiler directives are for enabling and disabling error checking in
 different parts of the program, they override the settings in Compiler Options.
 
-@ENDNODE Runerrson ;name
+@ENDNODE RunErrsOn ;name
 
 
-@NODE Runerrsoff "SYSTEM2"
+@NODE RunErrsOff "SYSTEM2"
 
-@{fg shine}Statement: Runerrsoff@{fg text}
+@{fg shine}Statement: RunErrsOff@{fg text}
 --------------------------------------------------------------------------------
 Modes  : 
-Syntax : Runerrsoff 
+Syntax : RunErrsOff 
 
-See description of Runerrson.
-@ENDNODE Runerrsoff
+See description of RunErrsOn.
+@ENDNODE RunErrsOff
 
 
 
@@ -1075,57 +1075,86 @@ initialized to ZERO, so we can only use DS to define areas, not DC.
 
 @ENDNODE BSS
 
+@NODE OPTIMIZE "SYSTEM2"
+
+@{fg shine}OPTIMIZE [mode]@{fg text}
+--------------------------------------------------------------------------------
+Syntax: OPTIMIZE [mode]
+
+mode:
+1 .. Integer optimizations (68020+ only)
+2 .. FPU optimizations (fpu only)
+4 .. newsyntax mode 
+8 .. optimize branches or jumps
+
+You may combine different modes using the OR-Operator, 
+
+e.g.
+@{fg shine}OPTIMIZE 1|4@{fg text} means: switch on newsyntax mode and turn on integer optimizations
+or 
+@{fg shine}OPTIMIZE 1|2@{fg text} means: turn on integer and fpu optimizations
+
+@ENDNODE optimize
+
+
+
 @NODE MAIN "SYSTEM2"
 .-----------------------------------------------------------------------------.
-|                                  @{b}SYSTEM2@{ub}                                    |
+|          @{b}SYSTEM2@{ub}                     @{" Overview " link OVERVIEW}                            |
 `-----------------------------------------------------------------------------'
-                      @{"     Overview     " link OVERVIEW}
+  
+          Continuing ASM-Commands Index                                
 
-                               Command Index                                
+         @{" MOVEM      " link MOVEM}                @{" MOVEQ      " link MOVEQ}
+         @{" MULS       " link MULS}                @{" MULU       " link MULU}
+         @{" NBCD       " link NBCD}                @{" NEG        " link NEG}
+         @{" NEGX       " link NEGX}                @{" NOP        " link NOP}
+         @{" NOT        " link NOT}                @{" OR         " link OR}
+         @{" ORI        " link ORI}                @{" PEA        " link PEA}
+         @{" RESET      " link RESET}                @{" ROL        " link ROL}
+         @{" ROR        " link ROR}                @{" ROXL       " link ROXL}
+         @{" ROXR       " link ROXR}                @{" RTE        " link RTE}
+         @{" RTR        " link RTR}                @{" RTS        " link RTS}
+         @{" SBCD       " link SBCD}
+         @{" SCC        " link SCC}                @{" SCS        " link SCS}
+         @{" SEQ        " link SEQ}                @{" SF         " link SF}
+         @{" SGE        " link SGE}                @{" SGT        " link SGT}
+         @{" SHI        " link SHI}                @{" SLE        " link SLE}
+         @{" SLS        " link SLS}                @{" SLT        " link SLT}
+         @{" SMI        " link SMI}                @{" SNE        " link SNE}
+         @{" SPL        " link SPL}                @{" ST         " link ST}
+         @{" SUB        " link SUB}
+         @{" SUBA       " link SUBA}                @{" SUBI       " link SUBI}
+         @{" SUBQ       " link SUBQ}                @{" SUBX       " link SUBX}
+         @{" SVC        " link SVC}                @{" SVS        " link SVS}
+         @{" SWAP       " link SWAP}                @{" TAS        " link TAS}
+         @{" TRAP       " link TRAP}                @{" TRAPV      " link TRAPV}
+         @{" TST        " link TST}                @{" UNLK       " link UNLK}
 
-                 @{" MOVEM      " link MOVEM}                @{" MOVEQ      " link MOVEQ}
-                 @{" MULS       " link MULS}                @{" MULU       " link MULU}
-                 @{" NBCD       " link NBCD}                @{" NEG        " link NEG}
-                 @{" NEGX       " link NEGX}                @{" NOP        " link NOP}
-                 @{" NOT        " link NOT}                @{" OR         " link OR}
-                 @{" ORI        " link ORI}                @{" PEA        " link PEA}
-                 @{" rese       " link rese}                @{" ROL        " link ROL}
-                 @{" ROR        " link ROR}                @{" ROXL       " link ROXL}
-                 @{" ROXR       " link ROXR}                @{" RTE        " link RTE}
-                 @{" RTR        " link RTR}                @{" RTS        " link RTS}
-                 @{" Runerrsoff " link Runerrsoff}                @{" SBCD       " link SBCD}
-                 @{" SCC        " link SCC}                @{" SCS        " link SCS}
-                 @{" SEQ        " link SEQ}                @{" SF         " link SF}
-                 @{" SGE        " link SGE}                @{" SGT        " link SGT}
-                 @{" SHI        " link SHI}                @{" SLE        " link SLE}
-                 @{" SLS        " link SLS}                @{" SLT        " link SLT}
-                 @{" SMI        " link SMI}                @{" SNE        " link SNE}
-                 @{" SPL        " link SPL}                @{" ST         " link ST}
-                 @{" Stop       " link Stop}                @{" SUB        " link SUB}
-                 @{" SUBA       " link SUBA}                @{" SUBI       " link SUBI}
-                 @{" SUBQ       " link SUBQ}                @{" SUBX       " link SUBX}
-                 @{" SVC        " link SVC}                @{" SVS        " link SVS}
-                 @{" SWAP       " link SWAP}                @{" TAS        " link TAS}
-                 @{" TRAP       " link TRAP}                @{" TRAPV      " link TRAPV}
-                 @{" TST        " link TST}                @{" UNLK       " link UNLK}
+          Other commands
+                
+         @{" Addr       " link Addr}                @{" Mod        " link Mod}
+         @{" Pi         " link Pi}                @{" Repeat     " link Repeat}
+         @{" Until      " link Until}                @{" PutReg     " link PutReg}
+         @{" Pop        " link Pop}                @{" INCDIR     " link INCDIR}
+         @{" Endif      " link endif}                @{" Wend       " link wend}
+         @{" Sysjsr     " link SysJsr}                @{" WBSTARTUP  " link WBstartup}
+         @{" Maximum    " link Maximum}                @{" On         " link On}
+         @{" Off        " link Off}                @{" Forever    " link Forever}
+         @{" Restore    " link Restore}                @{" Exchange   " link Exchange}
+         @{" USEPATH    " link USEPATH}                @{" CloseED    " link CloseED}
+         @{" NoCli      " link NoCli}                @{" BitTst     " link BitTst}
+         @{" BitSet     " link BitSet}                @{" BitClr     " link BitClr}
+         @{" BitChg     " link BitChg}                @{" Used       " link Used}
+         @{" BSS        " link BSS}                @{" LIST       " link LIST}
 
-                 @{" NANA       " link NANA}                @{" LIST       " link LIST}
-                 @{" SetErr     " link SetErr}                @{" ClrErr     " link ClrErr}
-                 @{" Errn       " link Errn}                @{" ErrFail    " link ErrFail}
-                 @{" Addr       " link Addr}                @{" Mod        " link Mod}
-                 @{" Pi         " link Pi}                @{" Repeat     " link Repeat}
-                 @{" Until      " link Until}                @{" PutReg     " link PutReg}
-                 @{" Pop        " link Pop}                @{" INCDIR     " link INCDIR}
-                 @{" Endif      " link endif}                @{" Wend       " link wend}
-                 @{" Sysjsr     " link SysJsr}                @{" WBSTARTUP  " link WBstartup}
-                 @{" Maximum    " link Maximum}                @{" On         " link On}
-                 @{" Off        " link Off}                @{" Forever    " link Forever}
-                 @{" Restore    " link Restore}                @{" Exchange   " link Exchange}
-                 @{" USEPATH    " link USEPATH}                @{" CloseED    " link CloseED}
-                 @{" NoCli      " link NoCli}                @{" BitTst     " link BitTst}
-                 @{" BitSet     " link BitSet}                @{" BitClr     " link BitClr}
-                 @{" BitChg     " link BitChg}                @{" Used       " link Used}
-                 @{" Runerrson  " link Runerrson;name}           @{" BSS         " link BSS}
+
+         @{" SetErr     " link SetErr}                @{" ClrErr     " link ClrErr}                 
+         @{" Errn       " link Errn}                @{" ErrFail    " link ErrFail}                 
+         @{" RunErrsOn  " link RunErrsOn}              @{" RunErrsOff " link RunErrsOff}
+         @{" Stop       " link Stop}               
+                 
+         @{" OPTIMIZE   " link OPTIMIZE}
 
 @ENDNODE MAIN
 

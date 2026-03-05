@@ -7031,7 +7031,7 @@ proves to be true, then compiling will continue as normal. If the comparison pro
 to be false, then no object code will be generated until a matching CEND is
 encountered.
 
-CSIF is of most use in macros for checking macro parameters.
+CSIF is of mostly used in macros for checking macro parameters.
 
 
 @{b}CELSE @{ub}

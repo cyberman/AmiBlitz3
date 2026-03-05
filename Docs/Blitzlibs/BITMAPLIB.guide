@@ -144,6 +144,37 @@ bitmaps CludgeBitMap can be used so that creating and freeing of
 BitMaps is not necessary.
 @ENDNODE CludgeBitMap
 
+
+@NODE SystemBitMap "BITMAPLIB"
+
+@{fg shine}Statement: SystemBitMap@{fg text}
+--------------------------------------------------------------------------------
+Modes  : 
+Syntax : SystemBitMap Mode
+
+ Mode:
+ 0 = standard way 
+ 1 = use layers and rastport so system friendly funcs can use them
+
+ When Mode is set to 1, on creation of a bitmap, an UpfrontLayer will be created as well.
+ 
+@ENDNODE SystemBitMap
+
+
+@NODE BitMapRastPort "BITMAPLIB"
+
+@{fg shine}Function: BitMapRastPort@{fg text}
+--------------------------------------------------------------------------------
+Modes  : 
+Syntax : *rp.RastPort = BitMapRastPort
+
+Returns a rastport for system friendly funcs (SystemBitMap 1 must be set)
+
+@ENDNODE BitMapRastPort
+
+
+
+
 @NODE MAIN "BITMAPLIB"
 
 .-----------------------------------------------------------------------------.
@@ -155,11 +186,13 @@ BitMaps is not necessary.
                                Command Index                                
 
                               @{" BitMap         " link BitMap}
+                              @{" BitMapRastPort " link BitMapRastPort}                              
                               @{" CludgeBitMap   " link CludgeBitMap}
                               @{" CopyBitMap     " link CopyBitMap}
                               @{" LoadBitMap     " link LoadBitMap}
                               @{" ScreensBitMap  " link ScreensBitMap}
-                              @{" ShapesBitMap   " link ShapesBitMap}
+                              @{" SystemBitMap   " link SystemBitMap}
+
 
 @ENDNODE MAIN
 
