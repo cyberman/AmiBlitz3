@@ -117,9 +117,9 @@ CEND
 ;/                                                                             /
 ;///////////////////////////////////////////////////////////////////////////////
 Function.l clipboard_WriteText{textP.l,@blen.l,@unit.l}
-If unit<0 Then unit=0
+If unit < 0 Then unit = 0
 succ.l = False
-*iff.IFFHandle=AllocIFF_()
+*iff.IFFHandle = AllocIFF_()
 If *iff
   *iff\iff_Stream = OpenClipboard_ (unit)
   If *iff\iff_Stream
@@ -127,10 +127,11 @@ If *iff
     If (OpenIFF_ (*iff, #IFFF_WRITE)=0)
       If (PushChunk_ (*iff, #ID_FTXT, #ID_FORM, #IFFSIZE_UNKNOWN)=0)
         If (PushChunk_ (*iff, 0, #ID_CHRS, #IFFSIZE_UNKNOWN)=0)
-          If blen<0
+          If blen < 0
             blen = 0
             While Peek.b(textP+blen) : blen+1 : Wend
           End If
+          
           If (WriteChunkBytes_ (*iff, textP, blen) = blen)
             If (PopChunk_ (*iff)=0) Then succ=True
           End If

@@ -172,7 +172,6 @@ End Function
 
 Function.l FAST log_GetFileHandle{}
 SHARED __ptr_consolelog
-
   Function Return __ptr_consolelog
 End Function
 
@@ -220,19 +219,22 @@ Function.b log_out{ls1.s,@ls2.s}
 SHARED __ptr_consolelog, __ptr_IOExtSer, logconfig
 
   If (logconfig\destination AND #log_toconsole) OR (logconfig\destination AND #log_toserial)
-    If __ptr_consolelog = 0 Then log_Init{""}
-
+    ;open the console per default?
+    ;If __ptr_consolelog = 0 Then log_Init{""}
     __cout$ = UStr$(ls1)
     If ls2 <> "" Then __cout$  + " " + UStr$(ls2)
     __cout$ + Chr$($a)
 
-    If (logconfig\destination AND #log_toconsole)  Then Write_ __ptr_consolelog, __cout$, FLen(__cout$)
+    If __ptr_consolelog
+      If (logconfig\destination AND #log_toconsole)  Then Write_ __ptr_consolelog, __cout$, FLen(__cout$)
+    EndIf
     If (logconfig\destination AND #log_toserial) Then WriteSerialString 0, __cout$ + Chr$(13)    
   EndIf
 
   If (logconfig\destination AND #log_tofile)
+    ;open the outputfile per default?
     ;If logconfig\_fileid = -1
-    logconfig\_fileid = file_Open{logconfig\_file,#file_open}
+    ;logconfig\_fileid = file_Open{logconfig\_file,#file_open}
     ;EndIf
     If logconfig\_fileid <> -1
       file_SeekRel{logconfig\_fileid,file_GetLength{logconfig\_fileid}}
