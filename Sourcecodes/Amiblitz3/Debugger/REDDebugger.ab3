@@ -882,7 +882,7 @@ CNIF #BACKGROUND_DBUG
             ClearList objwins()
             ali.l = 0 : lt$ = "" : exetask = 0 : autoeval = 0 : autoeval$ = ""
             pfregs = 0
-            ;!ComData_SetB{comByte_RunningFlag,#0}
+            !ComData_SetB{comByte_RunningFlag,#0}
             log2PED{"debugging the program has ended..."}
           EndIf
         Else
