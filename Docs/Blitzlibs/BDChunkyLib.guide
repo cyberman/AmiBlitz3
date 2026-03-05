@@ -71,6 +71,8 @@ End NEWTYPE
     NChunkyToBtm  NChunky#, BitMap#
 
     Convert a NChunky to BitMap ( same size !!! )
+
+    This command uses WritePixelArray8 from graphics.library which needs at least V36 (OS2.0).
 @ENDNODE
 
 
@@ -80,6 +82,8 @@ End NEWTYPE
     BtmToNChunky BitMap#, NChunky#
 
     Convert a BitMap to a NChunky ( same size !!! )
+
+    This command uses ReadPixelArray8 from graphics.library which needs at least V36 (OS2.0).
 @ENDNODE
 
 
