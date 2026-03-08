@@ -27229,44 +27229,44 @@ Return
       If PeekB(?debugmode) Then libsize + PeekL(libaddr + $2C)
       alllibssize + libsize
 
- ;     logmess.s = "Linking "
- ;     If libnum2 > 255 Then logmess + "syslib  : " Else logmess + "blitzlib: "
- ;     
- ;     Format "####0"
- ;     logmess + Str$(libnum2)
- ;     Format ""
- ;     logmess + ", " + PED_GetLibname{libnum2} + " (" + Str$(libsize) + " bytes)"
-;
- ;     ;-- logout
- ;     log2PED{logmess,#log_information}
-;
- ;     If libnum2 <=255 ; only for normal blitzlibs
- ;       logmess = "First used at "
- ;       If PeekW(?ininclude) > 0
- ;         codefile.s = dos_FilePart{incdim(PeekW(?ininclude)-1)}
- ;         codeline.l = PeekL(?includeline)
- ;       Else
- ;         codefile.s = ""
- ;         codeline.l = PeekL(?linenumat)
- ;       EndIf
-;
- ;       If codefile <> "" Then logmess + "Inc: " + LSet$(codefile,20) + " | "
- ;       If codeline <> -1 Then logmess + "Line " + LSet$(Str$(codeline),6)
-;
-;        If PeekL(?lastsourcepos) <> 0
-;          MaxLen detokenline.s = 1024 ; in case of a macro the line could be more than #MAX_Columns !
-;          !ComData_GetL{comPtr_PreProcessor,include_preprocessor} : *tn.preprocessor = PeekL(?include_preprocessor)
-;          written.l = preproc_DetokenizeLine{*tn, PeekL(?lastsourcepos), &detokenline}
-;          If written > 0 
-;            PokeB &detokenline + written,0
-;            If written > 128 Then Poke.s &detokenline + 128, "..." + Chr$(0)
-;            strline.s = Trim$(Peek.s(&detokenline))
-;            logmess + "| " + strline
-;          EndIf
-;        EndIf
- ;       
- ;       log2PED{logmess,#log_debug}
- ;     EndIf      
+      logmess.s = "Linking "
+      If libnum2 > 255 Then logmess + "syslib  : " Else logmess + "blitzlib: "
+      
+      Format "####0"
+      logmess + Str$(libnum2)
+      Format ""
+      logmess + ", " + PED_GetLibname{libnum2} + " (" + Str$(libsize) + " bytes)"
+
+      ;-- logout
+      log2PED{logmess,#log_information}
+
+      If libnum2 <=255 ; only for normal blitzlibs
+        logmess = "First used at "
+        If PeekW(?ininclude) > 0
+          codefile.s = dos_FilePart{incdim(PeekW(?ininclude)-1)}
+          codeline.l = PeekL(?includeline)
+        Else
+          codefile.s = ""
+          codeline.l = PeekL(?linenumat)
+        EndIf
+
+        If codefile <> "" Then logmess + "Inc: " + LSet$(codefile,20) + " | "
+        If codeline <> -1 Then logmess + "Line " + LSet$(Str$(codeline),6)
+
+        If PeekL(?lastsourcepos) <> 0
+          MaxLen detokenline.s = 1024 ; in case of a macro the line could be more than #MAX_Columns !
+          !ComData_GetL{comPtr_PreProcessor,include_preprocessor} : *tn.preprocessor = PeekL(?include_preprocessor)
+          written.l = preproc_DetokenizeLine{*tn, PeekL(?lastsourcepos), &detokenline}
+          If written > 0 
+            PokeB &detokenline + written,0
+            If written > 128 Then Poke.s &detokenline + 128, "..." + Chr$(0)
+            strline.s = Trim$(Peek.s(&detokenline))
+            logmess + "| " + strline
+          EndIf
+        EndIf
+        
+        log2PED{logmess,#log_debug}
+      EndIf      
     EndIf
     !asm
     !stack2regs
