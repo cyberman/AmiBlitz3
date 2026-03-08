@@ -14,7 +14,7 @@
 ; MakeSmallest    = 1
 ; FuncOptimize    = 1
 ; Version         = 3.11.3
-; NumberOfBuilds  = 3633
+; NumberOfBuilds  = 3636
 ; 
 ; Debugger
 ; -------------------------------------------------------
@@ -30,8 +30,8 @@
 ; 
 ; Editor
 ; -------------------------------------------------------
-; CursorLine      = 306
-; CursorColumn    = 28
+; CursorLine      = 4559
+; CursorColumn    = 1
 ; LabelSearch     = ""
 ; LabelRemark     = 0
 ; LabelAll        = 0
@@ -1900,7 +1900,6 @@ SHARED ped,readcache
       EndIf
     EndIf
   Until morebytes = False
-
   readcache\moreBytes = morebytes
   Function Return morebytes
 End Function
@@ -4423,9 +4422,11 @@ SHARED ped
   !log_PrintOut{"BlockStartY: " + Str$(ped\ptrCurrentSourceData\BlockStartY)}
   !log_PrintOut{"BlockEndX  : " + Str$(ped\ptrCurrentSourceData\BlockEndX)}
   !log_PrintOut{"BlockEndY  : " + Str$(ped\ptrCurrentSourceData\BlockEndY)}
+
   *tempLine.sourceLine = ped\ptrCurrentSourceData\CurrentSourceLine
+  
   currLine.l = ped\ptrCurrentSourceData\DisplayLineOffset + ped\ptrCurrentSourceData\DisplayLine
-  ;!log_PrintOut{"currline   : " + Str$(currLine) + "--> " + PED_Detokenize{*tempLine}}
+  !log_PrintOut{"currline   : " + Str$(currLine) + "--> " + PED_Detokenize{*tempLine}}
 
   If currLine = ped\ptrCurrentSourceData\BlockStartY
     ; do nothing
@@ -4633,8 +4634,11 @@ SHARED ped
     If strlng > ped\ptrCurrentSourceData\BlockEndX + 1
       strlng = ped\ptrCurrentSourceData\BlockEndX - ped\ptrCurrentSourceData\BlockStartX + 1
     EndIf
+    ;!log_PrintOut{Str$(strlng) + " - " + Str$(ped\ptrCurrentSourceData\BlockStartX + 1)}
     strline$ = Mid$(strline$, ped\ptrCurrentSourceData\BlockStartX + 1, strlng)
-    clipboard_WriteText{&strline$}
+    ;error{strline$}
+    clipboard_WriteText{&strline$,FLen(strline$)}
+    ;error{"ready"}
     !log_PrintOut{"moved " + Str$(strlng) + " to clipboard [" + strline$ + "]"}
   Else
     *iff.IFFHandle = AllocIFF_()
@@ -4874,13 +4878,15 @@ SHARED ped, readcache
 
   lineaddr.l = ped\ptrTextbuffer + ped\ptrCurrentSourceData\TextBufferOffset
   actualColumn.w = ped\ptrCurrentSourceData\Column + ped\ptrCurrentSourceData\ColumnsOffset
-
-  ; -- get first part of current line
-  beginString.s = PeekS(lineaddr, actualColumn)
-
-  ;-- get rest of current line
-  restString.s = PeekS(lineaddr + actualColumn,#MAX_Columns-1 - actualColumn-1)
-  restString = StripTrail$(restString,@" ")
+  If actualColumn
+    ; -- get first part and last past of current line
+    beginString.s = PeekS(lineaddr, actualColumn)
+    restString.s = PeekS(lineaddr + actualColumn,#MAX_Columns-1 - actualColumn-1)
+  Else
+    beginString.s = ""
+    restString.s = PeekS(lineaddr,#MAX_Columns-1)
+  EndIf
+  restString = StripTrail$(restString,@" ")  
 
   ;-- get first line and join it with currentline
   beginString = beginString + PED_ReadNextLine{}
@@ -4943,7 +4949,9 @@ SHARED ped, readcache
   EndIf
   ped\ptrCurrentSourceData\CurrentSourceLine = storeCurrentSourceLine
 
-  If blockfile <> "" Then PED_CloseFile{ped\sourceFileHandle}
+  If blockfile <> "" 
+    PED_CloseFile{ped\sourceFileHandle}
+  EndIf
 
   !PED_ResetBlockflag
   PED_RedrawSource{}
@@ -7375,7 +7383,7 @@ exit_PED_closelibraries:
   !log_PrintOut{"closing ports..."}
   If *WBMsgPort Then DeleteMsgPort_ *WBMsgPort
   CNIF #USE_AREXX = 1
-    ;-- send other programs the message to quit now
+    ;-- send other programs the message that we quit quit now
     !log_PrintOut{"sending AREXX-message QUITPLEASE"}
     ArexxMyMessage.s = "QUITPLEASE" : Gosub arexx_sendmessage
 
@@ -8604,6 +8612,7 @@ Even
       If Peek.s(&ped\ptrCurrentSourceData\SourceName) = ""
           !log_PrintOut{"current tab is not really used, we can us it"}
           Gosub free_actualsource
+          Gosub clear_sourcebuffer
       Else
         !log_PrintOut{"current tab is already used [" + Peek.s(&ped\ptrCurrentSourceData\SourceName) + "], opening a new tab"}
         Gosub menu_new
@@ -8627,42 +8636,46 @@ Even
 
   If ex.s = "ab3" OR ex.s = "ab2"; OR ex.s = "bb2"
     !log_PrintOut{"loading source via compiler ..."}
-
     GetD0 &loadsourcefilename.s
     !asm
     MOVE.l #MODE_OLDFILE,D2
     !ComData_JSR{comFunc_LoadSource}
     !basic
+    loadsuccess.l = PutD0
   Else
     Gosub load_normal_text
   EndIf
-  !log_PrintOut{"loaded " + Str$(ped\ptrCurrentSourceData\TotalLines) + " lines of text"}
 
-  Gosub storeCurrentSourceData    
-  !log_PrintOut{"deleting and storing xtra prefs..."}
-  Gosub delete_tempprefs
-  Gosub save_tempprefs
+  If loadsuccess = 0
+    !log_PrintOut{"Loading aborted with error.",#log_error}
+  Else
+    !log_PrintOut{"loaded " + Str$(ped\ptrCurrentSourceData\TotalLines) + " lines of text"}
 
-  ;-- restore windows
-  Gosub RestoreLabelAndNewtypeWin
-  project_changelog$ = ""
+    Gosub storeCurrentSourceData    
+    !log_PrintOut{"deleting and storing xtra prefs..."}
+    Gosub delete_tempprefs
+    Gosub save_tempprefs
 
-  Gosub analyze_loadedsource
-  Gosub calc_SourceWindowDimensions
+    ;-- restore windows
+    Gosub RestoreLabelAndNewtypeWin
+    project_changelog$ = ""
 
-  If ped\ptrCurrentSourceData\CursorPosStore
-    !log_PrintOut{"goto stored cursor line: " + Str$(ped\ptrCurrentSourceData\CursorPosStore)}
-    PED_GotoLine{ped\ptrCurrentSourceData\CursorPosStore-1, #LINE_START}
+    Gosub analyze_loadedsource
+    Gosub calc_SourceWindowDimensions
+
+    If ped\ptrCurrentSourceData\CursorPosStore
+      !log_PrintOut{"goto stored cursor line: " + Str$(ped\ptrCurrentSourceData\CursorPosStore)}
+      PED_GotoLine{ped\ptrCurrentSourceData\CursorPosStore-1, #LINE_START}
+    EndIf
+
+    !log_PrintOut{"updating sourcewindow..."}
+    PED_UpdateStatusArea{#STATUS_REDRAW}
+    Gosub reset_labellist
+    PED_RedrawSource{}
   EndIf
 
-  !log_PrintOut{"updating sourcewindow..."}
-  PED_UpdateStatusArea{#STATUS_REDRAW}
-  Gosub reset_labellist
-  PED_RedrawSource{}
-
-  PED_SetPointerNormal{}
-
   PED_ShowMessage{""}
+  PED_SetPointerNormal{}  
 Return
 
 .load_normal_text:
@@ -8676,6 +8689,7 @@ Return
   If NOT PED_ReadFileCache{}
     !log_PrintOut{"could not read file...",#log_error}
     PED_CloseFile{ped\sourceFileHandle}
+    loadsuccess = False
     Pop If : Return
   EndIf
 
@@ -8750,6 +8764,7 @@ Return
 
   ;-- set firstline as current one
   ped\ptrCurrentSourceData\CurrentSourceLine = ped\ptrCurrentSourceData\FirstSourceLine
+  loadsuccess = True
 Return
 
 
@@ -8902,8 +8917,8 @@ Return
 
   ;--
   ;-- check file length
-  If FLen(ped\currentFile) > 27
-    message{!TRANS{"Warning: Filename is longer than 27 characters.\\n" + ped\currentFile + "\\n\\nThis may cause problems with some filesystems."}}
+  If FLen(ped\currentFile) > 30
+    message{!TRANS{"Warning: Filename is longer than 30 characters.\\n" + ped\currentFile + "\\n\\nThis may cause problems with some filesystems."}}
   EndIf
   !log_PrintOut{"ped\sourceFileComplete : " + ped\sourceFileComplete + ", check exists: " + Str$(ped\check_existsfile)}
 
@@ -11509,18 +11524,18 @@ Return
       labelCaption.s = "---Breakpoint---" ; space at the beginning to see it as the first entry
       WZTags #WENTRYA_TextPen,2 : labelSorting = 0
     Case #TOKEN_Function
-      WZTags #WENTRYA_TextPen,#WZRD_SHINEPEN ;AB3Pen(#AB3_cfunction)
+      WZTags #WENTRYA_TextPen,AB3Pen(#AB3_cfunction)
     Case #TOKEN_Statement
-      WZTags #WENTRYA_TextPen,#WZRD_HIGHLIGHTTEXTPEN ;AB3Pen(#AB3_cfunction)
+      WZTags #WENTRYA_TextPen,AB3Pen(#AB3_cfunction)
     Case #TOKEN_Macro
-      WZTags #WENTRYA_TextPen,#WZRD_SHADOWPEN ;AB3Pen(#AB3_cmacro)
+      WZTags #WENTRYA_TextPen,AB3Pen(#AB3_cmacro)
     Case $FFFE ; remark
       WZTags #WENTRYA_TextPen,AB3Pen(#AB3_cremarkforeground)
     Case $FFFD ; unknown token
       WZTags #WENTRYA_TextPen,AB3Pen(#AB3_cclassic)
     Case $FFFF ; label
       WZTags #WENTRYA_TextPen,#WZRD_TEXTPEN
-      WZTags #WENTRYA_TextStyle,#FSF_UNDERLINED
+      ;WZTags #WENTRYA_TextStyle,#FSF_UNDERLINED
     Default
       WZTags #WENTRYA_TextPen,#WZRD_TEXTPEN
       WZTags #WENTRYA_TextStyle,#FS_NORMAL
@@ -12157,8 +12172,10 @@ Return
   ;EndIf
 
   ;-- optionally close log window if on screen
-  If pedconfig\use_pubscreen AND log_IsAvailable{}
-    log_Close{}
+  If log_IsAvailable{}
+    If pedconfig\use_pubscreen
+      log_Close{}
+    EndIf
   End If
 
   vvblank_Free{}
@@ -13713,9 +13730,7 @@ Return
   If ped\ptrCurrentSourceData\DisplayLineOffset > 0 
     PED_GotoLine{ped\ptrCurrentSourceData\DisplayLineOffset + ped\ptrCurrentSourceData\DisplayLine + pedconfig\wheelStep}
   Else
-    If ped\ptrCurrentSourceData\DisplayLine + pedconfig\wheelStep < ped\ptrCurrentSourceData\TotalLines
-      PED_MoveCursorDown{pedconfig\wheelStep}
-    EndIf
+    PED_MoveCursorDown{pedconfig\wheelStep}
   EndIf
 
   PED_UpdateStatusArea{#STATUS_SCROLLERS}
@@ -13730,9 +13745,7 @@ Return
   If ped\ptrCurrentSourceData\DisplayLineOffset > pedconfig\wheelStep 
     PED_GotoLine{ped\ptrCurrentSourceData\DisplayLineOffset + ped\ptrCurrentSourceData\DisplayLine - pedconfig\wheelStep}
   Else
-    If ped\ptrCurrentSourceData\DisplayLine > pedconfig\wheelStep
-      PED_MoveCursorUp{pedconfig\wheelStep}
-    EndIf
+    PED_MoveCursorUp{pedconfig\wheelStep}
   EndIf
 
   PED_UpdateStatusArea{#STATUS_SCROLLERS}
@@ -13805,7 +13818,7 @@ Return
 .menu_helpupdateinstructionindex:
   If pedconfig\usePreProcessor
     PED_SetPointerBusy{}  
-    WZ_ShowMessage{!TRANS{"updating token hashmap for preprocessor ..."}}
+    WZ_ShowMessage{!TRANS{"Updating token hashmap for preprocessor ..."}}
     Gosub update_preprocessor
     WZ_HideMessage{}
     PED_SetPointerNormal{}

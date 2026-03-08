@@ -22,7 +22,7 @@
 ; StackSize       = 32768
 ; RuntimeDebug    = 0
 ; DebugInfo       = 0
-; CreateDbgFile   = 8224
+; CreateDbgFile   = 1
 ; OverflowCheck   = 0
 ; AssemblerCheck  = 1
 ; InterruptCheck  = 1
@@ -30,8 +30,8 @@
 ; 
 ; Editor
 ; -------------------------------------------------------
-; CursorLine      = 354
-; CursorColumn    = 29
+; CursorLine      = 74
+; CursorColumn    = 54
 ; LabelSearch     = "exit_eventloop"
 ; LabelRemark     = 0
 ; LabelAll        = 1
@@ -46,11 +46,11 @@
 ; Max Bank        = 5
 ; Max MenuList    = 5
 ; Max GTList      = 25
-; Max Palette     = 4
 ; Max BitMap      = 10
 ; Max Screen      = 5
 ; Max IntuiFont   = 5
 ; Max Window      = 25
+; Max Palette     = 4
 ; Max BlitzFont   = 4
 ; Max IconInfo    = 1
 ; Max MUIObject   = 50
@@ -88,6 +88,7 @@ NEWTYPE.arexx
   parameter2.s
   ; result
   resultCode.l
+  resultCode2.l
   resultText.s
   ; internal data
   ptr_SourceLine.l
@@ -134,7 +135,7 @@ Return
     Call acom_ptr
     log_Print{"function result: " + Str$(arexx\resultCode) + " - " + arexx\resultText}
   Else
-    arexx\resultCode = #RC_ERROR : arexx\resultText = "UNKNOWN COMMAND"
+    arexx\resultCode = #RC_ERROR : arexx\resultCode2 = 100 : arexx\resultText = "UNKNOWN COMMAND"
     log_Print{"unknown arexx-command <" + arexx\command + ">, ignored..."}
   EndIf
   Gosub arexx_answer_message
@@ -146,11 +147,15 @@ Return
     ;#RC_WARN = 5
     ;#RC_ERROR = $A
     ;#RC_FATAL = $14
-    log_Print{"answering arexxmessage... ["+ arexx\resultText +"]"}
-    If arexx\resultText <> ""
-      arexx_ReplyMsgString{arexx\resultText}
+    log_Print{"answering arexxmessage... [" + Str$(arexx\resultCode) + ", " + Str$(arexx\resultCode2) + ", " + arexx\resultText +"]"}
+    If arexx\resultCode = #RC_ERROR
+      arexx_FailMsg{arexx\resultCode2}
     Else
-      arexx_ReplyMsg{arexx\resultCode}
+      If arexx\resultText <> ""
+        arexx_ReplyMsgString{arexx\resultText}
+      Else
+        arexx_ReplyMsg{arexx\resultCode}
+      EndIf
     EndIf
     arexx\answerFlag = True
   Else
@@ -227,14 +232,16 @@ Return
  Dc.l str_NEXTLINE,     arexxfunc_nextline 
  Dc.l str_GETLINE,      arexxfunc_getline            
  Dc.l str_PREVLINE,     arexxfunc_prevline           
- Dc.l str_HIDESCREEN,   arexxfunc_screentoback       
+ Dc.l str_SHOWSCREEN,   arexxfunc_screentofront  
+ Dc.l str_SCREENTOFRONT,arexxfunc_screentofront
+ Dc.l str_HIDESCREEN,   arexxfunc_screentoback        
+ Dc.l str_SCREENTOBACK, arexxfunc_screentoback   
  Dc.l str_REDRAW,       arexxfunc_redraw            
  Dc.l str_SCREENNAME,   arexxfunc_screenname         
  Dc.l str_ICONIFY,      arexxfunc_iconify
  Dc.l str_NOTIFYNEWDOC, arexxfunc_notifynewdoc 
  Dc.l str_DONTNOTIFYNEWDOC, arexxfunc_dontnotifynewdoc
  Dc.l str_GETDOCLIST,   arexxfunc_getdoclist     
- Dc.l str_SHOWSCREEN,   arexxfunc_screentofront 
  Dc.l str_GETWORD,      arexxfunc_getword
  Dc.l str_HELP,         arexxfunc_help               
  Dc.l str_HELPTEXT,     arexxfunc_helptext           
@@ -294,11 +301,13 @@ Return
  str_PASTE:             Dc.b "PASTE",0
  str_ACTIVATE:          Dc.b "ACTIVATE",0,0
  str_MAKEEXEC:          Dc.b "MAKEEXEC",0,0
-
+ str_SCREENTOFRONT:     Dc.b "SCREENTOFRONT",0
+ str_SCREENTOBACK:      Dc.b "SCREENTOBACK",0,0
+Even
 
 
 ; --
-; -- funtions to be executed by appropriate arexx-command
+; -- functions to be executed by appropriate arexx-command
 ; --
 .arexxfunc_activate:
   If sourceWindow\win Then ActivateWindow_ sourceWindow\win
@@ -425,8 +434,7 @@ RTS
 RTS
 
 .arexxfunc_quit:
-  Gosub arexx_answer_message
-  _menuitem.l = #MENU_QUIT
+  Gosub menu_quit
 RTS
 
 .arexxfunc_new:
@@ -445,8 +453,11 @@ Return
 
 .arexxfunc_load:
   If arexx\incomingParNums = 1
-    arexx\resultCode = #RC_OK : arexx\resultText = "" : Gosub arexx_answer_message
+    arexx\resultCode = #RC_OK : arexx\resultText = ""    
     loadsourcefilename.s = arexx\parameter1 : Gosub load_source
+    If loadsuccess = 0
+      arexx\resultCode = #RC_ERROR : arexx\resultCode2 = 101 : arexx\resultText = "Load aborted"
+    EndIf
   Else
     Gosub menu_load
     PED_RedrawSource{}
@@ -566,20 +577,31 @@ Return
   EndIf
 Return
 
+;.arexxfunc_compile:
+;  ped\selectedMenuItem = #MENU_COMPILE
+;  Gosub call_compilermenuitem
+;  arexx\resultText = Str$(compile_state)
+;Return
+
 .arexxfunc_compilerun:
-  _menuitem = #MENU_COMPILERUN
+  ped\selectedMenuItem = #MENU_COMPILERUN
   Gosub call_compilermenuitem
-  arexx\resultText = Str$(compile_state)
+  If compile_state < 1
+    arexx\resultText = Str$(compile_state)
+  Else
+    arexx\resultCode = #RC_ERROR
+    arexx\resultCode2 = compile_state
+  EndIf
 Return
 
 .arexxfunc_runexe:
-  _menuitem = #MENU_RUN
+  ped\selectedMenuItem = #MENU_RUN
   Gosub call_compilermenuitem
 Return
 
 
 .arexxfunc_makeexec:
-  _menuitem = #MENU_CREATEEXE
+  ped\selectedMenuItem = #MENU_CREATEEXE
   Gosub call_compilermenuitem
 Return
 
