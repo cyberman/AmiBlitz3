@@ -14,7 +14,7 @@
 ; MakeSmallest    = 0
 ; FuncOptimize    = 0
 ; Version         = 0.0.0
-; NumberOfBuilds  = 76
+; NumberOfBuilds  = 82
 ; 
 ; Debugger
 ; -------------------------------------------------------
@@ -30,8 +30,8 @@
 ; 
 ; Editor
 ; -------------------------------------------------------
-; CursorLine      = 130
-; CursorColumn    = 1
+; CursorLine      = 36
+; CursorColumn    = 18
 ; LabelSearch     = ""
 ; LabelRemark     = 0
 ; LabelAll        = 0
@@ -114,7 +114,7 @@ DEFTYPE.l         TempBitMapSize
 ; Hauptprogramm
 ; -----------------------------------------------------------------
 
-WBStartup
+WBStartup : NoCli
 
 ; Screen öffnen (Intuition übernimmt AllocBitMap etc.)
 Screen 0, 0,0, #SCR_W,#SCR_H, #DEPTH,0,"WritePixelArray8 Demo", 1,0
@@ -167,22 +167,13 @@ EndIf
 *vport = *scr\ViewPort
 
 ; SetRGB4(ViewPort, Index, R, G, B) – each 0..15
-SetRGB4_ *vport, 0,  0,  0,  0   ; 0 = Schwarz
-SetRGB4_ *vport, 1, 15,  0,  0   ; 1 = Rot
-SetRGB4_ *vport, 2,  0, 15,  0   ; 2 = Grün
-SetRGB4_ *vport, 3,  0,  0, 15   ; 3 = Blau
-SetRGB4_ *vport, 4, 15, 15,  0   ; 4 = Gelb
-SetRGB4_ *vport, 5, 15,  0, 15   ; 5 = Magenta
-SetRGB4_ *vport, 6,  0, 15, 15   ; 6 = Cyan
-SetRGB4_ *vport, 7, 15, 15, 15   ; 7 = Weiß
-SetRGB4_ *vport, 8,  8,  0,  0   ; 8 = Dunkelrot
-SetRGB4_ *vport, 9,  0,  8,  0   ; 9 = Dunkelgrün
-SetRGB4_ *vport,10,  0,  0,  8   ;10 = Dunkelblau
-SetRGB4_ *vport,11,  8,  8,  0   ;11 = Olivgelb
-SetRGB4_ *vport,12,  8,  0,  8   ;12 = Dunkellila
-SetRGB4_ *vport,13,  0,  8,  8   ;13 = Dunkelcyan
-SetRGB4_ *vport,14, 12,  8,  4   ;14 = Braun
-SetRGB4_ *vport,15,  4,  4,  4   ;15 = Dunkelgrau
+For c.b = 0 To 15
+
+  r.b = PeekB(?ColorData + (c*3))
+  g.b = PeekB(?ColorData + (c*3) + 1)
+  b.b = PeekB(?ColorData + (c*3) + 2)
+  SetRGB4_ *vport, c, r,g,b
+Next
 
 ; -----------------------------------------------------------------
 ; Call WritePixelArray8 
@@ -216,6 +207,27 @@ Cleanup:
   CloseWindow 0
   CloseScreen 0
 Return
+
+
+ColorData:
+Dc.b  0,  0,  0   ; 0 = Schwarz
+Dc.b 15,  0,  0   ; 1 = Rot
+Dc.b  0, 15,  0   ; 2 = Grün
+Dc.b  0,  0, 15   ; 3 = Blau
+Dc.b 15, 15,  0   ; 4 = Gelb
+Dc.b 15,  0, 15   ; 5 = Magenta
+Dc.b  0, 15, 15   ; 6 = Cyan
+Dc.b 15, 15, 15   ; 7 = Weiß
+Dc.b  8,  0,  0   ; 8 = Dunkelrot
+Dc.b  0,  8,  0   ; 9 = Dunkelgrün
+Dc.b  0,  0,  8   ;10 = Dunkelblau
+Dc.b  8,  8,  0   ;11 = Olivgelb
+Dc.b  8,  0,  8   ;12 = Dunkellila
+Dc.b  0,  8,  8   ;13 = Dunkelcyan
+Dc.b 12,  8,  4   ;14 = Braun
+Dc.b  4,  4,  4   ;15 = Dunkelgrau
+Even
+
 
 ; -----------------------------------------------------------------
 ; Pixeldaten 16×16 Farbindizes (Bytes, Wert 0-15)
@@ -292,5 +304,21 @@ PixelDataCircle:
   Dc.b 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0  ; Zeile 14
   Dc.b 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0  ; Zeile 15
 
+PixelDataBall:
+  Dc.b 0,0,0,1,1,1,2,2,1,1,1,2,2,0,0,0
+  Dc.b 0,0,1,1,1,2,2,1,1,1,2,2,1,1,0,0
+  Dc.b 0,1,1,1,2,2,1,1,1,2,2,1,1,1,2,0
+  Dc.b 0,1,1,2,2,1,1,1,2,2,1,1,1,2,2,0
+  Dc.b 1,1,2,2,1,1,1,2,2,1,1,1,2,2,3,3
+  Dc.b 1,1,2,2,1,1,2,2,1,1,1,2,2,3,3,3
+  Dc.b 2,2,1,1,1,2,2,1,1,1,2,2,3,3,3,3
+  Dc.b 2,2,1,1,2,2,1,1,1,2,2,3,3,3,3,3
+  Dc.b 1,1,1,2,2,1,1,1,2,2,1,3,3,3,3,3
+  Dc.b 1,1,2,2,1,1,1,2,2,1,1,3,3,3,3,1
+  Dc.b 0,1,2,2,1,1,2,2,1,1,3,3,3,3,1,0
+  Dc.b 0,2,2,1,1,2,2,1,1,1,3,3,3,1,1,0
+  Dc.b 0,0,2,2,1,1,1,1,1,1,3,3,1,1,0,0
+  Dc.b 0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0
+  Dc.b 0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0
   Dc.b 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0  ; additional space
 
