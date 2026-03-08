@@ -1066,7 +1066,7 @@ Function.l SaveSource{filename.s}
       FreeVec_ tmp
 
     Else
-      error{!TRANS{"Not enough memory for temp buffer!"}}
+      error{"Not enough memory for temp buffer!"}
     End If
     file_Close{fid}
   End If

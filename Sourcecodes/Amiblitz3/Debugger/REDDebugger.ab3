@@ -13,8 +13,8 @@
 ; StringBuffer    = 10240
 ; MakeSmallest    = 0
 ; FuncOptimize    = 1
-; Version         = 3.11.2
-; NumberOfBuilds  = 174
+; Version         = 3.11.3
+; NumberOfBuilds  = 178
 ; 
 ; Debugger
 ; -------------------------------------------------------
@@ -30,8 +30,8 @@
 ; 
 ; Editor
 ; -------------------------------------------------------
-; CursorLine      = 72
-; CursorColumn    = 1
+; CursorLine      = 59
+; CursorColumn    = 12
 ; LabelSearch     = ""
 ; LabelRemark     = 0
 ; LabelAll        = 0
@@ -137,7 +137,7 @@
 
 ;***********************************************************
 #USE_WIZARD          = 1     ; use wizard library?
-OPTIMIZE 13 ; don't use fpu because all calc must in FFP!!!!
+OPTIMIZE 1|4|8      ; don't use fpu because all calc must in FFP!!!!
 SYNTAX 6
 
 XINCLUDE "error.include.ab3"
@@ -174,7 +174,8 @@ XINCLUDE "wizard_Tools.include.ab3"
 #save_numwindows        = 13
 #wizardwindows          = 24
 
-#IDENTIFIER             = $44425547 ; "DBUG" ; to identify the rexxmsg from defaultdebug (debugger starter)
+#IDENTIFIER_DBUG        = $44425547 ; "DBUG" ; to identify the rexxmsg from defaultdebug (debugger starter)
+#IDENTIFIER_QUIT        = $51554954 ; "QUIT"
 #MAXCUSTOMCOMMANDS      = 20
 
 #bufflen                = 4096
@@ -579,9 +580,9 @@ DEFTYPE.sourceWindow sourceWindow
 NEWTYPE.rexxData      ; rexxdata for background mode
   winy.w
   winx.w
-  portname.s
-  *port.MsgPort
-  *Msg.IntuiMessage
+  myPortName.s
+  *myPort.MsgPort
+  *Msg.Message
   signal.l
 End NEWTYPE
 
@@ -679,6 +680,7 @@ SHARED redData
 ; -- Pm=49 : default background color
   If NOT redData\logging Then Statement Return
 
+  ;Attention: this could be a problem if PED is already gone!
   !ComData_LEA{comFunc_LogPrint,D0} : tmpD0.l = PutRegD0
   If Peek.l(tmpD0) <> 0
     message = "\\1B[33mRED " + message + "\\1B[39m"
@@ -783,21 +785,21 @@ CNIF #BACKGROUND_DBUG
   .BACKGROUND:
   ; Right, we need some global variables...
   ; -  msgport.l      is the address of Debugger's message port
-  ; -  msgportname$   is the name of Debugger's message port
+  ; -  msgmyPortName$   is the name of Debugger's message port
   DEFTYPE.rexxData rexxData
 
   rexxData\winy    = redData\ScreenBarHeight
   rexxData\winx    = 0
-  rexxData\portname= "REDDebugger"
+  rexxData\myPortName= "REDDebugger"
   rexxData\signal  = $10000000
 
   Statement CreateDebuggerPort{}
   SHARED rexxData
 
-    rexxData\port = CreateMsgPort_
-    If rexxData\port
-      rexxData\port\mp_Node\ln_Name = &rexxData\portname
-      AddPort_ rexxData\port
+    rexxData\myPort = CreateMsgPort_
+    If rexxData\myPort
+      rexxData\myPort\mp_Node\ln_Name = &rexxData\myPortName
+      AddPort_ rexxData\myPort
     EndIf
 
   End Statement
@@ -806,7 +808,7 @@ CNIF #BACKGROUND_DBUG
   SHARED rexxData
 
     If rexxData\Msg
-      If rexxData\port
+      If rexxData\myPort
         ReplyMsg_ rexxData\Msg
         rexxData\Msg = 0
       EndIf
@@ -818,52 +820,61 @@ CNIF #BACKGROUND_DBUG
   Statement DeleteDebuggerPort{}
   SHARED rexxData
 
-    If rexxData\port <> 0
-      RemPort_ rexxData\port
-      DeleteMsgPort_ rexxData\port
+    If rexxData\myPort <> 0
+      RemPort_ rexxData\myPort
+      DeleteMsgPort_ rexxData\myPort
     EndIf
 
   End Statement
 
   ; =============================================================== start code for #BACKGROUND_DBUG
-  If FindPort_(rexxData\portname)
+  If FindPort_(rexxData\myPortName)
     error{"The debugger is already running!"}
     End
   EndIf
 
   CreateDebuggerPort{}
-  AddWaitEvent PortSigBit(rexxData\port),rexxData\signal ; add port to WaitEvent
+  AddWaitEvent PortSigBit(rexxData\myPort),rexxData\signal ; add port to WaitEvent
 
+  quit.b = False
   background_redo.w = 1
   Repeat
     If background_redo
       log2PED{"recreating listening window ..."}
       *scr._Screen = GetPubScreen(0,"Workbench")
       textlen.w    = TextLength_(*scr\_RastPort,redData\appTitle,FLen(redData\appTitle)) + 64
-      Window 0, rexxData\winx, rexxData\winy,textlen,redData\WinBorTextTop,$21000e,redData\appTitle,-1,-1 ; rexxportname$,-1,-1
+      Window 0, rexxData\winx, rexxData\winy,textlen,redData\WinBorTextTop,$21000e,redData\appTitle,-1,-1 ; rexxmyPortName$,-1,-1
       background_redo = 0
     EndIf
 
     ev = WaitEvent
 
-    If ev = rexxData\signal
-      log2PED{"received rexx signal ..."}
+    Select ev
+    Case rexxData\signal
+      log2PED{"received message signal ..."}
+
+      ; store current position
       rexxData\winx = WindowX
       rexxData\winy = WindowY
 
-      ;DetachGTList 0 ; <= I am not sure if we want this, there is no GTList at all in the entire REDDebugger! (Thilo)
-
       Free Screen 0 : ReleasePubScreen 0,"Workbench"
 
-      rexxData\Msg = 1        ; hack to enter loop
-      While rexxData\Msg <> 0
-        rexxData\Msg = GetMsg_(rexxData\port)
+      Repeat
+        rexxData\Msg = GetMsg_(rexxData\myPort)
+
         If rexxData\Msg
-          userdata.l = rexxData\Msg\Class
-          identifier.l = rexxData\Msg\Code LSL 16 + rexxData\Msg\Qualifier
-          ;log2PED{"Identifier:" + Hex$(identifier)}
-          If identifier = #IDENTIFIER   ; get ID "DBUG" to check msg comes from debugger starter
-            GetReg a0, userdata.l      ; userdata of defaultdbug, stored in IntuiMessage\Class
+          If rexxData\Msg\mn_Length-SizeOf.Message = 8
+            userdata.l = PeekL(rexxData\Msg + SizeOf.Message)
+            identifier.l = PeekL(rexxData\Msg + SizeOf.Message + 4)
+          Else
+            error{"The message body is not as expected!"}
+          EndIf
+
+          ReplyDebuggerMsg{}                    
+
+          Select identifier
+          Case #IDENTIFIER_DBUG   ; get ID "DBUG" to check msg comes from debugger starter
+            GetReg a0, userdata.l       ; userdata of defaultdbug, stored in IntuiMessage\Class
             MOVE.l a0, d_table
             MOVE.l a5, d_a5
             MaxLen d_d$ = 256 : MaxLen d_ev$ = 256 : MaxLen d_ex$ = 256
@@ -871,7 +882,6 @@ CNIF #BACKGROUND_DBUG
             statego.w = 0 : dstatus.w = 0 : prtcode.w = 0 : Poke.l ?statego_,&statego
             sourceWindow\bufferMem = AllocMem_(#bufflen,$10001) : Poke.l ?buffmem_,sourceWindow\bufferMem : CLR bufferput
             ArrayFill winstatus(),0
-            ReplyDebuggerMsg{}
             ;
             Gosub mainstart
             ;
@@ -884,15 +894,19 @@ CNIF #BACKGROUND_DBUG
             pfregs = 0
             !ComData_SetB{comByte_RunningFlag,#0}
             log2PED{"debugging the program has ended..."}
-          EndIf
-        Else
-          ReplyDebuggerMsg{}
+
+          Case #IDENTIFIER_QUIT         
+            quit = True
+          End Select
         EndIf
-      Wend
+      Until rexxData\Msg = 0
 
       background_redo = 2
-    EndIf
-  Until ev = #IDCMP_CLOSEWINDOW
+    Case #IDCMP_CLOSEWINDOW
+      quit = True
+    End Select
+  Until quit = True
+
   DeleteDebuggerPort{}
 
 CELSE   ;#BACKGROUND_DBUG
