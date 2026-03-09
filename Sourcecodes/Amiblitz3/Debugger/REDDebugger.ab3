@@ -13,7 +13,7 @@
 ; StringBuffer    = 10240
 ; MakeSmallest    = 0
 ; FuncOptimize    = 1
-; Version         = 3.11.3
+; Version         = 3.11.4
 ; NumberOfBuilds  = 178
 ; 
 ; Debugger
@@ -31,7 +31,7 @@
 ; Editor
 ; -------------------------------------------------------
 ; CursorLine      = 59
-; CursorColumn    = 12
+; CursorColumn    = 1
 ; LabelSearch     = ""
 ; LabelRemark     = 0
 ; LabelAll        = 0

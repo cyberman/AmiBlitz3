@@ -13,7 +13,7 @@
 ; StringBuffer    = 64000
 ; MakeSmallest    = 1
 ; FuncOptimize    = 1
-; Version         = 3.11.3
+; Version         = 3.11.4
 ; NumberOfBuilds  = 3636
 ; 
 ; Debugger
