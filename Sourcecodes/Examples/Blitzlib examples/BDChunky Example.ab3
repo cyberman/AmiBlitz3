@@ -6,7 +6,7 @@
 ; ExePath         = ""
 ; ExeFile         = ""
 ; CreateIcon      = 1
-; Residents       = ""
+; Residents       = ",all.res"
 ; 
 ; Compiler
 ; -------------------------------------------------------
@@ -14,7 +14,7 @@
 ; MakeSmallest    = 0
 ; FuncOptimize    = 0
 ; Version         = 0.0.0
-; NumberOfBuilds  = 2
+; NumberOfBuilds  = 23
 ; 
 ; Debugger
 ; -------------------------------------------------------
@@ -30,8 +30,8 @@
 ; 
 ; Editor
 ; -------------------------------------------------------
-; CursorLine      = 38
-; CursorColumn    = 12
+; CursorLine      = 30
+; CursorColumn    = 10
 ; LabelSearch     = ""
 ; LabelRemark     = 0
 ; LabelAll        = 0
@@ -46,12 +46,12 @@
 ; Max Bank        = 5
 ; Max MenuList    = 5
 ; Max GTList      = 20
-; Max Palette     = 4
 ; Max BitMap      = 10
 ; Max Screen      = 5
 ; Max IntuiFont   = 5
-; Max BlitzFont   = 4
 ; Max Window      = 20
+; Max Palette     = 4
+; Max BlitzFont   = 4
 ; Max IconInfo    = 1
 ; Max MUIObject   = 50
 ; Max AsyncReq    = 4
@@ -78,15 +78,6 @@
 ; Max Stencil     = 5
 ; Max XBSound     = 10
 ; /XTRA
-; *********************************************************
-;                  New Chunky Library
-;    Coded by AlphaSOUND - (c) 1998 Fantaisie software
-; *********************************************************
-
-; *********************************************************
-;                     Example 1
-; Allocate a ChunkyBuffer and display it on a planar Screen
-; *********************************************************
 
 WBStartup
 
@@ -95,34 +86,28 @@ NInitChunky 0
 ; *********************************************************
 ;                     Starting Program...
 ; *********************************************************
+InitNChunky 0,320,200  ; Should be tested
 
-*BitmapPtr.l = AllocMem_((320*200)+1000, 2|65536)
+*BitmapPtr.l = AllocMem_((320*200)+10000, 2|65536)
 CludgeBitMap 0,320,200,8,*BitmapPtr+8
+Screen 0,0,0,320,200,8,0,"BDChunky Test",0,0,0
+Use BitMap 0: BitMapOutput 0
 
-Screen 0,0,0,320,200,8,0,"New Library Chunky Test V1.30",0,0,0
-
-NChunkyBuffer 0,320,200  ; Should be tested
-
-a=0
+a = 0
 Repeat
-  NChunkyBlit 8, 8, ?ChunkyShape1, 20+a,20
+  NCPlot 0,Rnd(319),Rnd(199),Rnd(255)
 
-  NChunkyBlock 8, 8, ?ChunkyShape1, 100,20+a
+  NCBoxF 0,10+Rnd(10),10+Rnd(10),20+Rnd(10),20+Rnd(10),Rnd(255)
 
-  NChunkyBlock 8, 8, ?ChunkyShape2, 150,180-a
-
-  NChunkyBlock 8, 8, ?ChunkyShape2, 20+a,50+a
-
-  NChunkyBlock 8, 8, ?ChunkyShape2, 80, 30+a
-
-  c2p040_320_200 NChunkyID, *BitmapPtr+4 ; Convert chunky to planar
-  a+1
+  ;-- do the chunky to planar conversion
+  NChunkyToBtm 0,0
+  
+  a + 1
   VWait
 
-Until a=100 OR Joyb(0) = 1
+Until a = 100 OR Joyb(0) = 1
 
-NMouseWait
-
+MouseWait
 End
 
 ChunkyShape1:

@@ -3,18 +3,18 @@
 ; 
 ; General Info
 ; -------------------------------------------------------
-; ExePath         = "Blitz3:"
+; ExePath         = "Development:AmiBlitz3"
 ; ExeFile         = "AmiBlitz3"
 ; CreateIcon      = 0
-; Residents       = "all.res,libnums.res"
+; Residents       = "all.res,libnums.res,libjsrs.res"
 ; 
 ; Compiler
 ; -------------------------------------------------------
 ; StringBuffer    = 20000
-; MakeSmallest    = 1
-; FuncOptimize    = 1
-; Version         = 3.11.3
-; NumberOfBuilds  = 640
+; MakeSmallest    = 0
+; FuncOptimize    = 0
+; Version         = 3.11.4
+; NumberOfBuilds  = 663
 ; 
 ; Debugger
 ; -------------------------------------------------------
@@ -30,9 +30,9 @@
 ; 
 ; Editor
 ; -------------------------------------------------------
-; CursorLine      = 23411
-; CursorColumn    = 41
-; LabelSearch     = ""
+; CursorLine      = 1254
+; CursorColumn    = 1
+; LabelSearch     = "Atokejsr"
 ; LabelRemark     = 0
 ; LabelAll        = 0
 ; LabelCase       = 0
@@ -121,8 +121,8 @@
 ;/ der Namensgebung zu AmiBlitz3.                                              /
 ;/                                                                             /
 ;///////////////////////////////////////////////////////////////////////////////
-
-OPTIMIZE 5                             ; don't use FPU (opt. 4)
+WBStartup
+OPTIMIZE 5                               ; don't use FPU (opt. 4)
 SYNTAX 6                                 ; syntax strictness
 
 Macro regs2stack                         ; helper macro
@@ -143,7 +143,10 @@ NEWTYPE.environment
   signalStopBitNum.l     
   signalStopMask.l       
   ;
-  *msgportPED.MsgPort
+  *pedPort.MsgPort
+  *myPort.MsgPort
+  *myProcess.Process
+  myName.s
   ;
   progdir.s
   ;
@@ -153,6 +156,7 @@ NEWTYPE.environment
   _runerror.b
 End NEWTYPE
 SHARED environment.environment
+environment\myName = "AmiBlitz3"
 
 NEWTYPE.configuration
   localization.b
@@ -197,29 +201,6 @@ NEWTYPE.libdata
 End NEWTYPE
 SHARED libdata.libdata
 
-
-
-
-!initasm                                 ; some initial mumbo jumbo
-!basic
-WBStartup
-
-;--- MorphOS Check to use the CacheClearE function because it is faster under MorphOS as CacheClearU
-If FindResident_("MorphOS")
-  PokeB ?MorphOS,1      ; set it to use CacheClear_E
-Else
-  PokeB ?MorphOS,0      ; set it to use CacheClear_U
-EndIf
-
-
-
-SHARED CLIMode.l
-SHARED cli_verbose.l
-CLIMode              = False
-MaxLen cli_tempstr.s = 1024
-GetCurrentDirName_ &cli_tempstr,1024  ; get the current dir to restore it on exit
-environment\progdir = Peek.s(&cli_tempstr)
-
 XINCLUDE "/BlitzLibs/residents/LVO/LVO.ab3"   ; needed for remaining asm-parts
 XINCLUDE "/Shared/common.ab3"
 XINCLUDE "/Shared/preprocessor.include.ab3"
@@ -229,6 +210,9 @@ XINCLUDE "dos.include.ab3"
 XINCLUDE "file.include.ab3"
 XINCLUDE "logging.include.ab3"
 
+
+SHARED CLIMode.l
+SHARED cli_verbose.l
 
 ; -- Statement to log text into PEDs log
 Statement log2PED{message.s, @level.b}
@@ -268,7 +252,7 @@ Statement log2PED{message.s, @level.b}
     If PeekL(tmpD0) <> 0
       message = "\\1B[32mAB3 " + message + "\\1B[39m"
       GetReg A1,&message  ; logtext
-      GetReg D0,level     ; loglevel
+      GetRegD0  level     ; loglevel
       !ComData_JSR{comFunc_LogPrint}
     Else
       ;error{"Log-function of PED not available for output: \\n" + message}
@@ -289,6 +273,41 @@ Statement log2PED_HexDump{maddr.l, size.w}
     log2PED{logtxt$}
   Next
 End Statement
+
+XINCLUDE "CLIModeSupport.ab3"
+
+; =============================================================================================================
+!initasm; some initial mumbo jumbo
+!basic
+CLIMode = False
+If dos_FromCLI{}
+  CLIMode.l = True
+  error_SetFlags{#error_stdout}
+Else
+  If FindPort_(environment\myName)
+    If ask{"AmiBlitz3 seems already to be running.\\nDo you really want to start it twice?","Yes|No"} = 0
+      Goto shutdown_compiler
+    EndIf
+  EndIf
+EndIf
+
+MaxLen cli_tempstr.s = 1024
+GetCurrentDirName_ &cli_tempstr,1024  ; get the current dir to restore it on exit
+environment\progdir = Peek.s(&cli_tempstr)
+environment\myProcess = FindTask_(0)
+environment\myPort = CreateMsgPort_
+If environment\myPort
+  environment\myPort\mp_Node\ln_Pri = 1
+  environment\myPort\mp_Node\ln_Name = &environment\myName
+  AddPort_(environment\myPort)
+EndIf
+
+;--- MorphOS Check to use the CacheClearE function because it is faster under MorphOS as CacheClearU
+If FindResident_("MorphOS")
+  PokeB ?MorphOS,1      ; set it to use CacheClear_E
+Else
+  PokeB ?MorphOS,0      ; set it to use CacheClear_U
+EndIf
 
 
 .TOOLTYPES
@@ -394,27 +413,12 @@ If dos_GetToolState{"DISABLE_LOCALIZATION"}  = -1
   config\localization = False
 Else
   config\localization = True
-  !TRANS_INIT{"AmiBlitz3"}     ; init localization via translation.include
+  !TRANS_INIT{environment\myName}     ; init localization via translation.include
 EndIf
 
 If dos_GetToolState{"LOG_USED_BLITZLIBS"} = -1
   PokeB ?log_blitzlibs,1
 EndIf
-
-; =============================================================================================================
-XINCLUDE "CLIModeSupport.ab3"
-If dos_FromCLI{}
-  CLIMode.l = True
-  error_SetFlags{#error_stdout}
-Else
-  ;TODO: find a suitable way to detect an already running instance of AB3
-  ;If FindTask_("AmiBlitz3")
-  ;  If ask{"AmiBlitz3 seems already to be running.\\nDo you really want to start it twice?","Yes|No"} = 0
-  ;    Goto shutdown_compiler
-  ;  EndIf
-  ;EndIf
-EndIf
-
 
 
 ; ========================== should be moved to common, as PED uses it too!
@@ -1117,9 +1121,7 @@ End Function
   MOVEM.l (a7)+,d0/a0
 
   !basic
-  *compilerProcess.Process = FindTask_(0)
-
-  PokeL ?mempool, CreatePool_(#MEMF_CLEAR,80000,80000)
+    PokeL ?mempool, CreatePool_(#MEMF_CLEAR,80000,80000)
   If PeekL(?mempool) = 0 Then Goto shutdown_compiler
 
   PokeL ?_dosbase, OpenLibrary_("dos.library",0)
@@ -1304,15 +1306,14 @@ End Function
   Gosub free_blitzlibs
   
 .shutdown_compiler:
-  If config\ptr_seg_debugger Then UnLoadSeg_ config\ptr_seg_debugger
   If config\ptr_seg_ped      Then UnLoadSeg_ config\ptr_seg_ped
+  If config\ptr_seg_debugger Then UnLoadSeg_ config\ptr_seg_debugger
+  Gosub tell_debugger_to_quit
 
   ;-- ptr_macrobuffer_begin: byte 0..3: size of macrobuffer
   ;--                        byte 4..7: address begin of buffer
   If PeekL(?ptr_macrobuffer_begin)-4 Then FreeMem_ PeekL(?ptr_macrobuffer_begin)-4, PeekL(?macrobuffer_size) + 4
-
   If PeekL(?constpcat) Then FreeMem_ PeekL(?constpcat), PeekL(?constmaxpc) : PokeL ?constpcat,0
-
   If PeekL(?mempool2) Then DeletePool_ PeekL(?mempool2) : PokeL ?mempool2,0
   If PeekL(?mempool) Then DeletePool_ PeekL(?mempool) : PokeL ?mempool,0
 
@@ -1322,6 +1323,11 @@ End Function
   If environment\signalPanicBitNum Then FreeSignal_ environment\signalPanicBitNum
 
 .abnormal_exit:
+  If environment\myPort
+    RemPort_ environment\myPort
+    DeleteMsgPort_ environment\myPort
+  EndIf
+
   If config\blitz3assign  <> ""
     If *AssignSema
       ReleaseSemaphore_ *AssignSema
@@ -1358,6 +1364,31 @@ End
 ; ----------------------------------------------------------------------------------------------
 ; ------------------------------------------ END OF MAINPROGRAM --------------------------------
 ; ----------------------------------------------------------------------------------------------
+.tell_debugger_to_quit:
+  Forbid_
+  *debuggerPort.MsgPort = FindPort_("REDDebugger")
+  If *debuggerPort <> 0
+    *quitMsg.Message = AllocPooled_ (PeekL(?mempool), SizeOf.Message+8)
+    If *quitMsg
+
+      ;-- sending a message to REDDebugger to indicate quit!
+      *quitMsg\mn_Length = SizeOf.Message + 8
+      *quitMsg\mn_ReplyPort  = environment\myPort
+      PokeL *quitMsg + SizeOf.Message,0           ; userdata      
+      PokeL *quitMsg + SizeOf.Message+4,$51554954 ; "QUIT"
+      PutMsg_ *debuggerPort,*quitMsg
+      Permit_
+
+      ;-- waiting for the acknowledge !
+      WaitPort_ environment\myPort
+      FreePooled_ PeekL(?mempool) , *quitMsg, *quitMsg\mn_Length
+    Else
+      Permit_
+    EndIf
+  Else
+    Permit_
+  EndIf
+Return
 
 .handle_cli_parameters:
   err.l = False
@@ -1483,7 +1514,7 @@ RTS
   PutReg d0,ab3save_filenameP.l
   If ab3save_filenameP
     ab3save_filename.s = Peek.s(ab3save_filenameP)
-    LoadSource{ab3save_filename}
+    GetRegD0  LoadSource{ab3save_filename}
   Else
     error{"INTERNAL ERROR: no filename passed in D0 to LoadSource{}!"}
   End If
@@ -1534,7 +1565,7 @@ ptr_newexefilename:    Dc.l 0                                                   
   !ComData_LEA{comStr_ExeFile,D0} : PutReg d0,exeFileP.l
   newexefilename.s = dos_AddPart{Peek.s(exeDirP),Peek.s(exeFileP)}
   Poke.l ?ptr_newexefilename,&newexefilename
-  ;GetReg D0,&newexefilename
+  ;GetRegD0  &newexefilename
   !asm
   ;MOVE.l D0,ptr_newexefilename
 
@@ -1826,8 +1857,8 @@ RTS
       !basic
       comstatusstr  = !TRANS{"Running the program ..."}
       calcpro = 100
-      GetReg D0,&comstatusstr : !ComData_SetL{comPtr_CompileStatusString,d0}
-      GetReg D0,&calcpro      : !ComData_SetL{comPtr_CompileCalcProLong ,d0}
+      GetRegD0  &comstatusstr : !ComData_SetL{comPtr_CompileStatusString,d0}
+      GetRegD0  &calcpro      : !ComData_SetL{comPtr_CompileCalcProLong ,d0}
       !asm
       !ComData_JSR{comFunc_UpdateCompileStatusWin}          
       !basic
@@ -1891,8 +1922,8 @@ RTS
                          #NP_StackSize,PeekL(?stacksize),@@
                          #NP_HomeDir,environment\lock_ExePath,@@                         
                          #NP_CurrentDir, environment\lock_ExePath,@@
-                         #NP_Input,*compilerProcess\pr_CIS, #NP_CloseInput,False,@@ 
-                         #NP_Output,*compilerProcess\pr_COS, #NP_CloseOutput,False,@@ 
+                         #NP_Input,environment\myProcess\pr_CIS, #NP_CloseInput,False,@@ 
+                         #NP_Output,environment\myProcess\pr_COS, #NP_CloseOutput,False,@@ 
                          #TAG_END,0)  
   EndIf
 
@@ -2088,7 +2119,7 @@ stopit:     Ds.w 1
   !basic
   ;-- send compilerProcess the signal that the task has stopped OK!
   PokeW ?stopit, 1
-  Signal_ *compilerProcess, environment\signalStopMask
+  Signal_ environment\myProcess, environment\signalStopMask
   !asm
   !ComData_SetB{comByte_RunningFlag,#0}  
 RTS
@@ -2168,9 +2199,13 @@ compiler_job: Dc.w 0                                      ; added by thilo: what
   MOVE.l #0,compileErrorCode
   MOVE.l A7,errstack
 
+  ;-- 
+  ;-- check for one pass and allocate maximum memory for usage
+  ;--
   !regs2stack
   TST.w set_make_smallestcode : BNE 'nobigallox
-    JSR bigallox                   ; no try to make big buffers for 1 pass compile
+    ; no try to make big buffers for 1 pass compile
+    JSR bigallox 
  'nobigallox
   !stack2regs
 
@@ -2182,9 +2217,7 @@ compiler_job: Dc.w 0                                      ; added by thilo: what
   ;--
   ;-- racing stripe stuff...
   ;--
-  MOVE.w #100,d0                                           ; 100%
-  SWAP D0
-  CLR.w D0
+  MOVE.w #100,d0 : SWAP D0 : CLR.w D0                    ; 100%
   MOVE.l numlines,d1                                       ; was divu numlines,d0
   DIVU.l d1,d0                                             ; 100 / numlines; progress per line
   TST.w D0 : BNE.w 'ok
@@ -2309,19 +2342,23 @@ compiler_job: Dc.w 0                                      ; added by thilo: what
     !regs2stack             ; added to get the needed size for the exe from the last (second) compile for the create the release exe  tomsmart1
     !basic
     If releaseexe = True                                       ; test if we create a release exe
-      needsize1.l = PeekL(?bigpc) - PeekL(?destbufferstart)  ; get the size from the last compile
-      If (needsize1 = needsize0) AND (releasedbg_save = 1)     ; test if we we can not reduce the size anymore and need to cread a dbg file
-        PokeW ?set_create_dbgfile,$80                          ; set create .dbg file to one
-        !asm
-        JSR ab3_OpenDebugFile                                  ; open the .dbg flie
-        !stack2regs
-        BSR compileall                                         ; compile for the last time to create the dbg file
-        !regs2stack
-        !basic
+      needsize1.l = PeekL(?bigpc) - PeekL(?destbufferstart)    ; get the size from the last compile
+
+      If releasedbg_save = 1                                   ; is a releasedbg executable requested ?
+        If (needsize1 = needsize0)                             ; test if we can not reduce the size anymore
+          PokeW ?set_create_dbgfile,$80                        ; set create .dbg file to one
+          !asm
+          JSR ab3_OpenDebugFile                                ; open the .dbg flie
+          !stack2regs
+          BSR compileall                                       ; compile for the last time to create the dbg file
+          !regs2stack
+          !basic
+        EndIf
       EndIf
 
       If needsize1 < needsize0   ; test if the needed size is smaller then the compile befor
-        needsize0 = needsize1    ; yes the new size is that the old size
+        log2PED{"Executable size " + Str$(needsize1) + " bytes, will try to reduce it by a further compile pass..."}
+        needsize0 = needsize1
         Pop If : Pop If
         !asm
         !stack2regs
@@ -2342,16 +2379,21 @@ compiler_job: Dc.w 0                                      ; added by thilo: what
     BRA.w 'dosave
 
  'inc
-    BSR.w alloxinc : BEQ.w Aclearallvars                    ;increase all by 50%
+    BSR.w alloxinc : BEQ.w Aclearallvars                    ; increase all by 50%
     JSR ab3_OpenDebugFile                                   ; added to fix that the .dbg file only holds the data from the second (last) compile if no make_smallest is set and the buffer was to small  tomsmart1
     BRA.w 'retry
 
  'dosave
   ;-- log out size of libcode for executable
   !basic
+  log2PED{"----------------------------------------------------------------",#log_information}
   log2PED{"Used size for linked blitzlibs: " + Str$(alllibssize) + " bytes.",#log_information}
+  log2PED{"Optimizer settings were:",#log_debug}
+  log2PED{"- 68020+   :" + Binb$(PeekB(?optimize_integer)),#log_debug}
+  log2PED{"- 6888x    :" + Binb$(PeekB(?optimize_fpu)),#log_debug}
+  log2PED{"- jumps    :" + Binb$(PeekB(?optimize_jumps)),#log_debug}  
+  log2PED{"- newsyntax:" + Binb$(PeekB(?optimize_newsyntax)),#log_debug}
   !asm
-
 
 .qfree:
   ;--
@@ -2368,9 +2410,6 @@ compiler_job: Dc.w 0                                      ; added by thilo: what
   JSR free_xincludes
   JSR free_Fors
   JSR cleartemplabel
-  ;!basic
-  ;log2PED{"done  ..."}
-  ;!asm  
 RTS
 
 .Aclearallvars:      ; was freeemup  org source                                    ;called from ped every filechange
@@ -2392,6 +2431,7 @@ RTS
   CLR.b funcparloop
   CLR.b nostringopt
   CLR.b firsttime
+  CLR.l lastsourcepos
   CLR.l lastdestpointer
   CLR.l lastwritedat
   CLR.l prevwritedat
@@ -2406,7 +2446,7 @@ RTS
   CLR.b optistring2
   CLR.b optiarray
   CLR.b quickadd
-  CLR.w newmode
+  CLR.w pluginmode
   CLR.w mode
   CLR.w string1
   CLR.b fastfunc
@@ -3153,8 +3193,8 @@ RTS
 
 .close_compilewin:         ; was endstop  org source
   !basic
-  *compilerProcess\pr_Task\tc_SigExcept = 0
-  *compilerProcess\pr_Task\tc_ExceptCode = 0
+  environment\myProcess\pr_Task\tc_SigExcept = 0
+  environment\myProcess\pr_Task\tc_ExceptCode = 0
   !asm
 RTS
 
@@ -3211,8 +3251,8 @@ debugmode:  Ds.w 1                                         ;debugga org source ;
   pass_old      = -1
   update_comstatus_gui = True ; for the first
 
-  GetReg D0,&comstatusstr : !ComData_SetL{comPtr_CompileStatusString,d0}
-  GetReg D0,&calcpro      : !ComData_SetL{comPtr_CompileCalcProLong ,d0}
+  GetRegD0  &comstatusstr : !ComData_SetL{comPtr_CompileStatusString,d0}
+  GetRegD0  &calcpro      : !ComData_SetL{comPtr_CompileCalcProLong ,d0}
   !asm
 
   CLR.w stopit
@@ -4275,27 +4315,20 @@ handle_statement:                                          ;a procedure! - eg ga
   MOVE.b (a1),d2                                            ; in D2 we have the parameter datatype
   MOVE.l d0,d1                                              ; seems to be the register number
 
-  CMP.w #4,d2                                               ; is it Type 4 "quick"?
-  BNE 'l1b                                                  ; if no, branch ahead
-    ADD.l #$203c,d1                                         ; move.l x,y, $0x00 codes the D-Register:
-    JSR writeword                                           ; $203c: D0, $223c, D1, $243c: D2, ...
-    MOVE.l #$ffff0000,d1
-    JSR writelong                                           ; concrete: move.l #-$10000,dx
+  CMP.w #4,d2 : BNE 'l1b                                    ; is it Type 4 "quick"? if no, branch ahead
+    ADD.l #$203c,d1 : JSR writeword                         ; move.l x,y, $0x00 codes the D-Register:
+    MOVE.l #$ffff0000,d1 : JSR writelong                    ; concrete: move.l #-$10000,dx
     BRA 'l2b
  'l1b
-    TST.b optimize_fpu                                                ; test against 0
-    BNE 'l1c                                                 ; if Zero-Flag is NOT set, then branch
-      CMP.w #5,d2                                            ; is the variable Type 5 "float"?
-      BNE 'l1c
-        ADD.l #$203c,d1                                     ; write code move.l x,y
-        JSR writeword
+    TST.b optimize_fpu : BNE 'l1c                           ; test against 0, if Zero-Flag is NOT set, then branch
+      CMP.w #5,d2 : BNE 'l1c                                ; is the variable Type 5 "float"?
+        ADD.l #$203c,d1 : JSR writeword                     ; write code move.l x,y
         MOVE.l #$800000c1,d1 : JSR writelong                ; concrete: move.l #-$7FFFFF3F,d2
         BRA 'l2b
    'l1c
       ADD.l #$70ff,d1 : JSR writeword                       ; moveq.l #-$1,dx -> dx register in d1 will be ADD-ed with opcode
 
-      CMP.w #7,d2
-      BNE 'l1d
+      CMP.w #7,d2 : BNE 'l1d
         MOVE.l #$2f3c0000,d1 : JSR writelong                ; write code move.l #0,-(a7)
         MOVEQ #0,d1 : JSR writeword
         
@@ -4315,10 +4348,8 @@ handle_statement:                                          ;a procedure! - eg ga
   MOVE.l (a7)+,d1
   ADDQ.l #1,a1
   ADD.l #$0200,d0
-  CMP.l #$0e00,d0
-    BEQ syntaxerr
-  TST.b (a1)
-  BNE 'again
+  CMP.l #$0e00,d0 : BEQ syntaxerr
+  TST.b (a1) : BNE 'again
 
   BRA 'no_defined_parameters
 
@@ -4464,7 +4495,7 @@ BRA.w get1bytemain
   MOVE.w D0,D1
   BSR.w searchinstr    ; input: d1=token, return: a2.l=lib, a3.l=sub (code for token)
 
-  TST.b newmode : BNE compile_term
+  TST.b pluginmode : BNE compile_term
   BTST #$2,$1(A3) : BNE.w stamigalib        ; a3 = pointer to instr ;toke stuff in a3
   BTST #$0,$1(A3) : BEQ.w needreturn_       ; syntax err need return   ;check it's a statement
   BSR.w sizespec                            ; does it need a size specifier?
@@ -4961,7 +4992,6 @@ JMP writelong
 .do_VWait:
   BEQ.w 'zero
     MOVEQ.l #$02,D2                                          ;get a word
-    ;BSR.w bakeval
     JSR bakeval
     MOVE.w fvwait(PC),D1
     BRA.w 'vcont
@@ -5376,11 +5406,11 @@ RTS
 
 
 alloxinc:                                                  
-  ;increment allocs by 150%
+  ;-- increment allocs by doubling the buffers
   ;
   ; new >
   !basic
-  log2PED{"increasing buffers"}
+  log2PED{"Increasing buffers"}
   !asm
 
   MOVE.l data1,D4  : SUB.l data1start,D4      : ADD.l #10000,d4
@@ -6298,8 +6328,7 @@ RTS
 
 
 dounmove:
-  MOVE.w #$4CDF,D1
-  BSR.w writeword
+  MOVE.w #$4CDF,D1 : BSR.w writeword
   MOVE.w unmove(PC),D1
 BRA.w writeword
 
@@ -6313,51 +6342,38 @@ BRA.w writeword
 ;--
 
 .do_PutReg:
-  BSR.w get_reg2
+  BSR.w get_reg2                                         ;get reg in D4
   CMP.w #",",D0 : BNE.w syntaxerr
 
-  MOVE.l #$48E7FFFE,D1                                     ;movem.l d0-a6,-(a7)
-  BSR.w writelong
-  MOVE.w D4,D1
-  ORI.w #$2F00,D1
-  BSR.w writeword
+  MOVE.l #$48E7FFFE,D1 : BSR.w writelong                 ;movem.l d0-a6,-(a7)
+  MOVE.w D4,D1 : ORI.w #$2F00,D1 : BSR.w writeword       ;MOVE.L  D0,-(A7)
   ;
   BSR.w get1bytemain
   JSR getparameter           ; bsr.w
   BSR.w fetchvars
   BSR.w calcvar
-  BTST #$E,D2
-  BEQ.w 'notp
+  BTST #$E,D2 : BEQ.w 'notp
 
  'issa
     MOVE.b #$3,D2
     BRA.w 'pd
 
  'notp
-    TST.b D2
-   BEQ.w 'issa
-  CMP.b #$7,D2
-   BEQ.w 'issa
+   TST.b D2 : BEQ.w 'issa
+   CMP.b #$7,D2 : BEQ.w 'issa
 
  'pd
-  BTST #$F,D2
-   BNE.w 'nsimp
-  MOVE.w #$45ED,D1                                         ;lea x(a5),a2
-   BSR.w writeword
-  MOVE.w D3,D1
-   BSR.w writeword
-
+  BTST #$F,D2 : BNE.w 'nsimp
+    MOVE.w #$45ED,D1 : BSR.w writeword                   ;lea x(a5),a2
+    MOVE.w D3,D1 : BSR.w writeword
  'nsimp
-  MOVE.w #$201F,D1                                         ;move.l (a7)+,d0
-   BSR.w writeword
+  MOVE.w #$201F,D1 : BSR.w writeword                     ;move.l (a7)+,d0
+   
   MOVE.w #$1480,D1
-  CMP.b #$1,D2
-   BEQ.w 'pg
-  EORI.w #$3000,D1
-  CMP.b #$2,D2
-   BNE.w 'pg
-  ORI.w #$1000,D1
-
+  CMP.b #$1,D2 : BEQ.w 'pg
+    EORI.w #$3000,D1
+    CMP.b #$2,D2 : BNE.w 'pg
+      ORI.w #$1000,D1
  'pg
   BSR.w writeword
   MOVE.l #$4CDF7FFF,D1
@@ -7250,7 +7266,7 @@ JMP handle_compileerror
     BEQ 'skipo_lf1
 
  'skipo_lf2
-  JSR evalconst3
+  JSR evalconst2
 
  'skipo_l30
   MOVEA.l asmbuff,A2 : BEQ.w 'oko
@@ -8318,7 +8334,7 @@ fetchpees3:
 
 
 handlep:
-  ;d2=what to get. various flags are as follows:
+  ;d2 = what to get. various flags are as follows:
   ;
   ;BIT 7 : The Address of a var - d2.b = type of var
   ;BIT 6 : We want to push any results that
@@ -8330,23 +8346,22 @@ handlep:
    MOVE.w D2,D1
    ANDI.w #$40,D1          ;push bit
    MOVE.b D1,partostack
-   TST.b D2
-    BMI.w handlevara
-   BTST #$5,D2
-    BNE.w handlearr
+
+   TST.b D2 : BMI.w handlevara
+   BTST #$5,D2 : BNE.w handlearr
   ;
   ;normal p get
   ;
   ; new >
-    MOVE.w regnumstore,-(a7)
-    MOVE.w tempregnum,-(a7)
-    MOVE.w parnum,-(a7)
+  MOVE.w regnumstore,-(a7)
+  MOVE.w tempregnum,-(a7)
+  MOVE.w parnum,-(a7)
   ; < new
-    BSR.w getap                                        ;recursive entry
+  BSR.w getap                                        ;recursive entry
   ; new >
-    MOVE.w (a7)+,parnum
-    MOVE.w (a7)+,tempregnum
-    MOVE.w (a7)+,regnumstore
+  MOVE.w (a7)+,parnum
+  MOVE.w (a7)+,tempregnum
+  MOVE.w (a7)+,regnumstore
   ; < new
 
 putap:
@@ -9144,12 +9159,11 @@ searchinstr:                  ; was  findtoke org source input: d1=token, return
     CMP.w #$ffff,$16(a3)    : BNE.s 'ex10
     MOVE.l $12(a3),d1       : BEQ.s 'ex10   ;third parameter in !subs is set!
       LEA pluginbase,a3
-      ;move.b #1,newmode
+      ;move.b #1,pluginmode
       JMP 0(a2,d1.l)                        ;plugin
    'ex10
-
     MOVEA.l A2,A1
-    CLR.b newmode
+    CLR.b pluginmode
     MOVE.w $4(A1),D1 : BSR.w uselib3
     MOVEM.l (A7)+,D1/A1-a3
     RTS
@@ -9165,8 +9179,8 @@ searchinstr:                  ; was  findtoke org source input: d1=token, return
     ; < new
   
    'userlib
-    CMP.w 14(A2),D1
-    BEQ.w 'found
+      CMP.w 14(A2),D1 : BEQ.w 'found
+
       SUBQ.w #1,D1
       MOVEA.l $2(A3),A3
     BRA.w 'userlib
@@ -9195,22 +9209,16 @@ SHARED ptr_EndOfLibs.l
 
   If libfilename <> ""
     libfilesize.l = dos_GetFileSize{libfilename}
+    log2PED{"loading biglib <" + libfilename + ">, size: " + Str$(libfilesize) + " bytes"}
     libfilehandle.l = Open_(&libfilename,#MODE_OLDFILE)
-    If libfilehandle AND (libfilesize > 0)
+    If (libfilehandle <> 0) AND (libfilesize > 0)
       tmp_buffer.l = AllocPooled_(mempool, libfilesize)
       tmp_size.l = Read_(libfilehandle, tmp_buffer, libfilesize)
       If tmp_size > 0
-;        !cout{"read ok "  + Str$(tmp_size)}
-;        !cout{"libpointer: " + Hex$(libpointer)}
-        ;If append_to_list
-        ;  While PeekL(libpointer) <> 0
-        ;    !cout{Hex$(PeekL(libpointer)) + "  "}
-        ;    libpointer = PeekL(libpointer)
-        ;  Wend
-        ;EndIf
+
         ;-- process loaded libsfile
-        GetReg D0,libpointer : MOVE.l d0,-(a7)
-        GetReg D0,tmp_buffer : MOVE.l d0,-(a7)
+        GetRegD0  libpointer : MOVE.l d0,-(a7)
+        GetRegD0  tmp_buffer : MOVE.l d0,-(a7)
         !asm
         MOVE.l (a7)+,A0     ; memory address of loaded libsfile
         MOVE.l (a7)+,A3     ; libpointer
@@ -9239,7 +9247,7 @@ SHARED ptr_EndOfLibs.l
         linkdone:
         MOVE.l A3,D0
         !basic
-        PutReg d0,ptr_EndOfLibs
+        ptr_EndOfLibs = PutD0
  ;       !cout{"read done at " + Hex$(ptr_EndOfLibs)}
       Else
         error{"could not read libfile " + libfilename}
@@ -9253,64 +9261,60 @@ SHARED ptr_EndOfLibs.l
 End Function
 
 .load_all_libraries:
-  tempmapping$ = dos_AddPart{config\path_system,"token_mapping_userlibs.txt"}
-  dos_Delete{tempmapping$}
-  tokmapfid.l = file_Open{tempmapping$,#file_forcewrite}
+  ptr_EndOfLibs = ?libpointer
+
+  log2PED{"loading biglibs"}
 
   ;-- load baseLibs
-  ;!cout{"baseLibs"}
   If config\path_baselibs <> ""
     libdata\size_baselibs = dos_GetFileSize{config\path_baselibs}
     If libdata\size_baselibs < 0
       error{"BASELIBS [" + config\path_baselibs + "] not found, none of the stored functions will be available."}
     Else
-      libdata\ptr_baselibs = load_biglibsfile{config\path_baselibs,?libpointer,PeekL(?mempool)}
+      libdata\ptr_baselibs = load_biglibsfile{config\path_baselibs,ptr_EndOfLibs,PeekL(?mempool)}
     EndIf
-  Else
-    ptr_EndOfLibs = ?libpointer
   EndIf
 
   ;-- load utilLibs
-  ;!cout{"utilLibs"}
   If config\path_utillibs <> ""
     libdata\size_utillibs = dos_GetFileSize{config\path_utillibs}
     If libdata\size_utillibs < 0
       error{"UTILLIBS [" + config\path_utillibs + "] not found, none of the stored functions will be available."}
     Else
-      tmp_mem.l = load_biglibsfile{config\path_utillibs,ptr_EndOfLibs,PeekL(?mempool)}
-      libdata\ptr_utillibs = tmp_mem
+      libdata\ptr_utillibs = load_biglibsfile{config\path_utillibs,ptr_EndOfLibs,PeekL(?mempool)}
     End If
   EndIf
 
   ;-- load oslibs
-  ;!cout{"osLibs"}
   If config\path_oslibs <> ""
     libdata\size_oslibs = dos_GetFileSize{config\path_oslibs}
     If libdata\size_oslibs < 0
       error{"OSLIBS [" + config\path_oslibs + "] not found, none of the stored functions will be available."}
     Else
-      tmp_mem.l = load_biglibsfile{config\path_oslibs,ptr_EndOfLibs,PeekL(?mempool)}
-      libdata\ptr_oslibs = tmp_mem
+      libdata\ptr_oslibs = load_biglibsfile{config\path_oslibs,ptr_EndOfLibs,PeekL(?mempool)}
     End If
   EndIf
 
   ;-- load cslibs
-  ;!cout{"csLibs"}
   If config\path_cslibs <> ""
     libdata\size_cslibs = dos_GetFileSize{config\path_cslibs}
     If libdata\size_cslibs < 0
       error{"CSLIBS [" + config\path_cslibs + "] not found, none of the stored functions will be available."}
     Else
-      tmp_mem.l = load_biglibsfile{config\path_cslibs,ptr_EndOfLibs,PeekL(?mempool)}
-      libdata\ptr_cslibs = tmp_mem
+      libdata\ptr_cslibs = load_biglibsfile{config\path_cslibs,ptr_EndOfLibs,PeekL(?mempool)}
     End If
   EndIf
 
   libdata\ptr_userlibs = ptr_EndOfLibs
   PokeL ptr_EndOfLibs,0  ; setting pointer to next lib to 0
- 
+
+  ;-- when opening userlibs the first time, we update the token mapping file!
+  tempmapping$ = dos_AddPart{config\path_system,"token_mapping_userlibs.txt"}
+  dos_Delete{tempmapping$}
+  tokmapfid.l = file_Open{tempmapping$,#file_forcewrite}
+
 .load_userlibs:
-  log2PED{"scanning userlibs ...",#log_debug}
+  log2PED{"loading userlibs",#log_debug}
   ResetList userlibslist()
   While NextItem(userlibslist())
     userlib_filename$ = dos_AddPart{config\path_userlibs,userlibslist()\libname}
@@ -9680,7 +9684,7 @@ JMP error_create_exe
 .save_binaryfile:
   !regs2stack
   !basic
-  log2PED{"Creating executable file " + Peek.s(PeekL(?ptr_newexefilename))}
+  log2PED{"Writing to file " + Peek.s(PeekL(?ptr_newexefilename)),#log_information}
   !asm
   !stack2regs
 
@@ -10392,7 +10396,7 @@ getchar: ; A5=sourcepos, return D0 = next char
 
   MOVEQ.l #$00,D0
   MOVE.b (A5)+,D0 : BEQ 'donea
-  BPL 'stuffa                                               ; token?
+  BPL 'stuffa                                               ; this could be a token, lets assemble it together!
     LSL.l #8,D0
     MOVE.b (A5)+,D0
     MOVE.l a1,-(a7)
@@ -10404,8 +10408,9 @@ getchar: ; A5=sourcepos, return D0 = next char
     MOVE.l (a7)+,a1
     BRA 'weiter
  'stuffa
+
   CMP.w #$22,D0 : BEQ.b 'swapquotea                           ;'"'
-  CMP.w #$3B,D0 : BNE.b 'donea
+  CMP.w #";",D0 : BNE.b 'donea
   TST.w instringon : BNE.b 'donea
 
  'loopa
@@ -10431,9 +10436,9 @@ getchar: ; A5=sourcepos, return D0 = next char
     CMP.w ##TokenID_CELSE,D0:   BEQ.w 'celse
     CMP.w ##TokenID_CEND,D0 :   BEQ.w 'cend
  'done2
-  TST.w skipcode :   BEQ.w getchar
-  CMP.w #127,D0  :   BEQ.w 'cmake                            ;tilde
-  CMP.w #$2,D0   :   BNE.w 'notunpath
+  TST.w skipcode : BEQ.w getchar
+  CMP.w #127,D0  : BEQ.w 'cmake                            ;tilde
+  CMP.w #$2,D0   : BNE.w 'notunpath
     MOVEA.l usedfrom,A5
     CLR.l usedfrom
     BRA.w getchar
@@ -10460,7 +10465,7 @@ getchar: ; A5=sourcepos, return D0 = next char
     MOVE.l (A1)+,(A0)+
   DBF D0,'cmloop
 
-  JSR evalconst3                                      ;get constant into d3
+  JSR evalconst2                                      ;get constant into d3
   CMP.w #127,D0 : BNE.w syntaxerr                        ; tilde
 
   MOVE.l A5,cmakea5
@@ -10483,7 +10488,7 @@ getchar: ; A5=sourcepos, return D0 = next char
   BRA.w getchar
 
  'done
- RTS
+RTS
 
  'csif
   MOVE.l linenumat,ciflineat                               ;csif
@@ -10549,7 +10554,7 @@ ciflineat:   Ds.l 1
 
  'stuff
   CMP.w #$22,D0    : BEQ.b 'swapquote     ;'"'
-  CMP.w #$3B,D0    : BNE.b 'done
+  CMP.w #";",D0    : BNE.b 'done
   TST.w instringon : BNE.b 'done
 
  'loop
@@ -10735,6 +10740,9 @@ Even
      'end_output
  
    'skip_Lxx2
+
+    ;JSR qfree
+
     MOVEA.l errstack,A7
     MOVEA.l errcont,A0
     ;JMP (A0)                                                  ;clear all vars
@@ -13674,64 +13682,59 @@ BRA.w docflib2
 
 do_not_equal_float:                                        ;donef org source
   MOVEQ.l #-$2A,D1
-  TST.b optimize_fpu
-   BEQ 'nofpu
-   MOVEQ #0,d1
-   MOVE.w regnum,d1
-   MOVE.l d1,d2
-   ASL.l #7,d1
-   ADDQ  #1,d2
-   ASL.l #8,d2
-   ASL.l #2,d2
-   OR.l d2,d1
-   OR.l #$f2000038,d1
-   JSR writelong
-   MOVE.w #$f240,d1
-   OR.w regnum,d1
-   BSR writeword
-   MOVE.l #1,d2
-   MOVE.w #$e,d1                                           ;fpu comp fsne
-   BSR writeword
- RTS
-
+  TST.b optimize_fpu : BEQ 'nofpu
+    MOVEQ #0,d1
+    MOVE.w regnum,d1
+    MOVE.l d1,d2
+    ASL.l #7,d1
+    ADDQ  #1,d2
+    ASL.l #8,d2
+    ASL.l #2,d2
+    OR.l d2,d1
+    OR.l #$f2000038,d1
+    JSR writelong
+    MOVE.w #$f240,d1
+    OR.w regnum,d1
+    BSR writeword
+    MOVE.l #1,d2
+    MOVE.w #$e,d1                                           ;fpu comp fsne
+    BSR writeword
+    RTS
  'nofpu
-   BSR.w docflib
-   BSR.w donecmp
+    BSR.w docflib
+    BSR.w donecmp
 BRA.w docflib2
 
 
 do_littler_float:                                          ;doltf org source
   MOVEQ.l #-$2A,D1
-    TST.b optimize_fpu
-   BEQ 'nofpu
-   MOVEQ #0,d1
-   MOVE.w regnum,d1
-   MOVE.l d1,d2
-   ASL.l #7,d1
-   ADDQ  #1,d2
-   ASL.l #8,d2
-   ASL.l #2,d2
-   OR.l d2,d1
-   OR.l #$f2000038,d1
-   JSR writelong
-   MOVE.w #$f240,d1
-   OR.w regnum,d1
-   BSR writeword
-   MOVE.l #$1,d2
-   MOVE.w #$14,d1                                          ;fpu comp fslt
-   BSR writeword
- RTS
-
+  TST.b optimize_fpu : BEQ 'nofpu
+    MOVEQ #0,d1
+    MOVE.w regnum,d1
+    MOVE.l d1,d2
+    ASL.l #7,d1
+    ADDQ  #1,d2
+    ASL.l #8,d2
+    ASL.l #2,d2
+    OR.l d2,d1
+    OR.l #$f2000038,d1
+    JSR writelong
+    MOVE.w #$f240,d1
+    OR.w regnum,d1
+    BSR writeword
+    MOVE.l #$1,d2
+    MOVE.w #$14,d1                                          ;fpu comp fslt
+    BSR writeword
+    RTS
  'nofpu
-   BSR.w docflib
-   BSR.w doltcmp
+    BSR.w docflib
+    BSR.w doltcmp
 BRA.w docflib2
 
 
 do_littler_equal_float:                                    ;dolef org source
   MOVEQ.l #-$2A,D1
-  TST.b optimize_fpu
-  BEQ 'nofpu
+  TST.b optimize_fpu : BEQ 'nofpu
     MOVEQ #0,d1
     MOVE.w regnum,d1
     MOVE.l d1,d2
@@ -13750,107 +13753,102 @@ do_littler_equal_float:                                    ;dolef org source
     BSR writeword
     RTS
  'nofpu
-  BSR.w docflib
-  BSR.w dolecmp
+    BSR.w docflib
+    BSR.w dolecmp
 BRA.w docflib2
 
 
 do_greater_float:                                          ;dogtf org source
   MOVEQ.l #-$2A,D1
-   TST.b optimize_fpu
-   BEQ 'nofpu
+  TST.b optimize_fpu : BEQ 'nofpu
     MOVEQ #0,d1
-   MOVE.w regnum,d1
-   MOVE.l d1,d2
-   ASL.l #7,d1
-   ADDQ  #1,d2
-   ASL.l #8,d2
-   ASL.l #2,d2
-   OR.l d2,d1
-   OR.l #$f2000038,d1
-   JSR writelong
-   MOVE.w #$f240,d1
-   OR.w regnum,d1
-   BSR writeword
-   MOVE.l #1,d2
-   MOVE.w #$12,d1                                          ;fpu comp fsgt
-   BSR writeword
- RTS
-
+    MOVE.w regnum,d1
+    MOVE.l d1,d2
+    ASL.l #7,d1
+    ADDQ  #1,d2
+    ASL.l #8,d2
+    ASL.l #2,d2
+    OR.l d2,d1
+    OR.l #$f2000038,d1
+    JSR writelong
+    MOVE.w #$f240,d1
+    OR.w regnum,d1
+    BSR writeword
+    MOVE.l #1,d2
+    MOVE.w #$12,d1                                          ;fpu comp fsgt
+    BSR writeword
+    RTS
  'nofpu
-   BSR.w docflib
-   BSR.w dogtcmp
+    BSR.w docflib
+    BSR.w dogtcmp
 BRA.w docflib2
 
 
 do_greater_equal_float:                                   ;dogef org source
   MOVEQ.l #-$2A,D1
- TST.b optimize_fpu
-   BEQ 'nofpu
-   MOVEQ #0,d1
-   MOVE.w regnum,d1
-   MOVE.l d1,d2
-   ASL.l #7,d1
-   ADDQ  #1,d2
-   ASL.l #8,d2
-   ASL.l #2,d2
-   OR.l d2,d1
-   OR.l #$f2000038,d1
-   JSR writelong
-   MOVE.w #$f240,d1
-   OR.w regnum,d1
-   BSR writeword
-   MOVE.l #1,d2
-   MOVE.w #$13,d1                                          ;fpu comp fsge
-   BSR writeword
- RTS
-
+  TST.b optimize_fpu : BEQ 'nofpu
+    MOVEQ #0,d1
+    MOVE.w regnum,d1
+    MOVE.l d1,d2
+    ASL.l #7,d1
+    ADDQ  #1,d2
+    ASL.l #8,d2
+    ASL.l #2,d2
+    OR.l d2,d1
+    OR.l #$f2000038,d1
+    JSR writelong
+    MOVE.w #$f240,d1
+    OR.w regnum,d1
+    BSR writeword
+    MOVE.l #1,d2
+    MOVE.w #$13,d1                                          ;fpu comp fsge
+    BSR writeword
+    RTS
  'nofpu
-   BSR.w docflib
-   BSR.w dogecmp
+    BSR.w docflib
+    BSR.w dogecmp
 BRA.w docflib2
-
 
 
 do_equal_string:                                           ;doeqs org source
   MOVE.l #$CE00,D1
-   MOVE.l d1,lastinstruction
-   BSR.w Atokejsr
+  MOVE.l d1,lastinstruction
+  BSR.w Atokejsr
 BRA.w doeqcmp
 
 
 do_not_equal_string:                                       ;dones org source
   MOVE.l #$CE00,D1
-   MOVE.l d1,lastinstruction
-   BSR.w Atokejsr
+  MOVE.l d1,lastinstruction
+  BSR.w Atokejsr
 BRA.w donecmp
 
 
 do_littler_string:                                         ;dolts org source
   MOVE.l #$CE00,D1
-   MOVE.l d1,lastinstruction
-   BSR.w Atokejsr
+  MOVE.l d1,lastinstruction
+  BSR.w Atokejsr
 BRA.w doltcmp
 
 
 do_littler_equal_string:                                   ;doles org source
   MOVE.l #$CE00,D1
-   MOVE.l d1,lastinstruction
-   BSR.w Atokejsr
+  MOVE.l d1,lastinstruction
+  BSR.w Atokejsr
 BRA.w dolecmp
 
 
 do_greater_string:                                         ;dogts org source
   MOVE.l #$CE00,D1
-   MOVE.l d1,lastinstruction
-   BSR.w Atokejsr
+  MOVE.l d1,lastinstruction
+  BSR.w Atokejsr
 BRA.w dogtcmp
 
 
 do_greater_equal_string:                                   ;doges org source
   MOVE.l #$CE00,D1
-   MOVE.l d1,lastinstruction
-   BSR.w Atokejsr
+  MOVE.l d1,lastinstruction
+  BSR.w Atokejsr
 BRA.w dogecmp
 
 
@@ -14430,8 +14428,7 @@ BRA.w domylib
 
 do_mod_float:
   BSR.w nocando                                            ;modlib lib uses an alibjsr!
-  TST.b optimize_fpu
-  BEQ 'old
+  TST.b optimize_fpu : BEQ 'old
     MOVEQ #0,d1
     MOVE.w regnum,d1                                       ; fpu mod
     MOVE.l d1,d0
@@ -15684,8 +15681,7 @@ libfunction:
   ; new >
   CMP.w #$3c01,24(a2)                                     ;val skipped
   BNE 'noval
-    TST.b optimize_fpu
-    BEQ 'noval
+    TST.b optimize_fpu : BEQ 'noval
       CLR.l load_var_addr
       MOVEQ #0,d1
       MOVE.w regnum,d1
@@ -15696,10 +15692,8 @@ libfunction:
  'noval
   CMP.w #$3c02,24(a2)                                     ;int skipped
   BEQ 'quick
-    CMP.b #5,d2
-    BNE 'nofpu2
-    TST.b optimize_fpu
-    BEQ 'nofpu2
+    CMP.b #5,d2 : BNE 'nofpu2
+    TST.b optimize_fpu : BEQ 'nofpu2
     ;CLR.l load_var_addr
     ;BRA 'nofpu2
  'quick
@@ -15713,8 +15707,7 @@ libfunction:
   BSR.w writeword      ;move.l d0,regat                                    ;write move.l d0,dx
 
   ; new >
-  TST.b optimize_fpu
-  BEQ 'skip2
+  TST.b optimize_fpu : BEQ 'skip2
     MOVEQ #0,d1
     MOVE.w regnum,d1
     LSL.l #7,d1
@@ -15725,8 +15718,7 @@ libfunction:
   MOVE.w (A7)+,D3
   BEQ.w 'nomovem
   ; new >
-  TST.b optimize_fpu
-  BEQ 'nofpu3
+  TST.b optimize_fpu : BEQ 'nofpu3
     MOVE.l d0,-(a7)
     MOVE.l a0,-(a7)
     MOVE.l stacktrack,d1
@@ -16445,8 +16437,6 @@ RTS
   MOVE.l D1,-(A7)                                           ;Push the TARGET PC on to the stack
 
   TST.b optimize_jumps : BEQ 'fullJsr
-
-  ;JSR log_optimize
 
   ;-- To start with, we'll get the current PC of the compiled program
   MOVE.l destpointer,d1
@@ -17841,7 +17831,7 @@ muld1:                            ;generate code for #d1.w * regat
       MOVE.w #$203C,D1 : BSR.w writeword
       MOVE.l d0,-(a7)      ; store d0
       !basic
-      GetReg D0,config\ptr_seg_debugger
+      GetRegD0 config\ptr_seg_debugger
       !asm
       ;MOVE.l ptr_seg_debugger,D1
       MOVE.l D0,D1
@@ -19164,8 +19154,7 @@ RTS
   MOVEA.l lastsourcepos,A5
   ; < new
 
-evalconst2  ;
-evalconst3:
+evalconst2:
   ;move.l maths,a6
   ;
   ;MOVE.b isconstantvalue,-(a7)                 ;new
@@ -19528,19 +19517,16 @@ pokedata2b:
 RTS
 
 
-getsp:
-  ;get a string parameter for conditional stuff
-  ;into a0
-  CMP.w #$22,D0          ;'"'
-  BNE.w syntaxerr
-
+getStringParameter:
+  ;-- get a string parameter for conditional stuff into a0
+  CMP.w #$22,D0 : BNE.w syntaxerr          ;'"'
+  
  'getsp2
     JSR get1bytemain
-    CMP.b #$22,D0       ;'"'
-    BEQ.w 'done
-      TST.w D0
-      BEQ.w syntaxerr
-        MOVE.b D0,(A0)+
+    CMP.b #$22,D0 : BEQ.w 'done            ;'"'
+
+    TST.w D0 : BEQ.w syntaxerr
+    MOVE.b D0,(A0)+
   BRA.w 'getsp2
  'done
   CLR.b (A0)
@@ -19777,7 +19763,7 @@ BRA.w do_then
 .do_cerr:
   LEA namebuffer,A0
   MOVE.l A0,-(A7)
-  BSR.w getsp
+  BSR.w getStringParameter
 BRA.w handle_compileerror
 
 
@@ -19794,20 +19780,15 @@ BRA.w compare
 
 
 .do_csif:
-  LEA namebuffer,A0
-  BSR.w getsp
+  LEA namebuffer,A0 : BSR.w getStringParameter
   JSR get1bytemain
   BSR.w collif
-  LEA namebuffer2,A0
-  BSR.w getsp
+  LEA namebuffer2,A0 : BSR.w getStringParameter
   LEA strcom,A0
 
-
 .compare:
-  ;use subroutine in a0, cc in d1 to compare then enable
-  ;or disable compilation
-  ;accordingly
-  ;
+  ;-- use subroutine in a0, cc in d1 to compare then enable or disable compilation accordingly
+  ;--
   LSL.w #2,D1
   LEA CIF_branches,A1
   MOVE.l $0(A1,D1.W),-(A7)
@@ -20066,19 +20047,16 @@ RTS
 .do_ds:
   BSR.w getsize2                                          ;definestorage
   MOVE.w D1,-(A7)
-  BSR.w evalconst3
+  BSR.w evalconst2
   MOVE.w (A7)+,D1
   LSL.l D1,D3
   ; new >
-  MOVE.l d3,d0
-  BEQ 'll5
-  MOVEQ #0,d1
-
- 'll10
-    JSR writebyte
-    SUBQ.l #1,d3
-  BNE.s 'll10
-
+  MOVE.l d3,d0 : BEQ 'll5
+    MOVEQ #0,d1
+   'll10
+      JSR writebyte
+      SUBQ.l #1,d3
+    BNE.s 'll10
  'll5
  ; < new
  ;ADD.l d3,pc   ; or source
@@ -20320,23 +20298,23 @@ RTS
             BRA.w 'dataok
     'notb
       BRA.w baddaterr
-  'dataok
+   'dataok
 
     CMP.w #$3,D2 : BCC.w 'notword
       BSR.w pokedata2
       BRA.w 'next
-  'notword
+   'notword
 
     ; new >
     TST.b iee : BEQ 'old
       CMP.b #5,d2 : BNE 'old
         Dc.l $f2006400                                           ;  fpu data write fmove.s fp0,d0
         ;BSR writelong
-  'old
+   'old
     ; < new
     BSR.w pokedata2l                                          ;write data >3
 
-  'next
+   'next
     JSR reget_lastchar
   CMP.w #",",D0 : BEQ.w 'more
   ADDQ.w #2,A7
@@ -22453,7 +22431,7 @@ BRA.w 'skip4
     ;get constant value!
     ;
     MOVEM.l D3-D4/A2,-(A7)
-    BSR.w evalconst3
+    BSR.w evalconst2
 
     CMP.w #"]",D0 : BNE.w JUMP_syntaxerr
     TST.w D6 : BNE.w JUMP_fpconerr
@@ -25261,8 +25239,6 @@ residents_table_end:     ; Label added that this memspace can be cleared  tomsma
 
 str_calcexpression:        Ds.l 32
 destbufferend_backup_calc: Ds.l 1             ; was calclibat
-Even
-
 
 .menu_calculator:         ;calculator
   MOVE.l destbufferend,destbufferend_backup_calc
@@ -25286,7 +25262,7 @@ Even
   ;
   CLR.w connest             ;no idea...
   LEA str_calcexpression,A5
-  JSR evalconst3            ;evaluate constant
+  JSR evalconst2            ;evaluate constant
   ;
   LEA str_calcexpression,A0
   TST.l D3 : BPL.w 'ispos
@@ -25355,24 +25331,6 @@ Even
 RTS
 
 Even
-str_cliarguments: Ds.b 255                                  ; a command line can actually be 255 characters long
-
-Even
-
-;.menu_simcliarguments:   ; was menu9                                  ; deactivated becaus is now in PED  tomsmart1
-   ;CLI ARGUEMENT
-   ;
-   ; new >
-;   MOVEA.l comdata,A1
-;  MOVEA.l $802(A1),A1                                      ; compiler says to PED: openwindow
-;  !ComData_GetL{comPtr_CLIArgumentsString,A1}
-;  MOVE.l #1001,D0                                          ; set indification for CLIArgs window
-;  MOVE.l #str_cliarguments,D1                              ; set pointer for the string
-;  JSR (A1)                                                 ; open PED window CLIArgs
-;RTS
-   ; < new
-
-
 .skipme:                                                   ;skip functions
  'l1
     MOVE.b (a5)+,d0
@@ -25413,7 +25371,7 @@ RTS
   i999.l = SystemDate
   a$=Date$ (i999)
   a$=Replace$(a$,"/",".")
-  GetReg D0,&a$
+  GetRegD0  &a$
   MOVEQ #8,d2
   MOVE.l d0,a0
 
@@ -25436,7 +25394,7 @@ RTS
   i999.l = SystemDate
   a$=Date$(i999)
   a$=Replace$(a$,"/",".")
-  GetReg D0,&a$
+  GetRegD0  &a$
   MOVEQ #8,d2
   MOVE.l d0,a0
 
@@ -25459,7 +25417,7 @@ RTS
   i999.l = SystemDate
   a$ = Date$ (i999)
   a$ = Replace$(a$,"/",".")
-  GetReg D0,&a$
+  GetRegD0  &a$
   MOVEQ #8,d2
   MOVE.l d0,a0
 
@@ -25481,7 +25439,7 @@ RTS
   i999.l = SystemDate
   a$=Date$ (i999)
   a$=Replace$(a$,"/",".")
-  GetReg D0,&a$
+  GetRegD0  &a$
   MOVEQ #8,d2
   MOVE.l d0,a0
 
@@ -25537,12 +25495,12 @@ RTS
   End Select
   Format ""
 
-  GetReg D0,FLen(put_versionstr$)                              ; laenge zielstring -> Stack
+  GetRegD0  FLen(put_versionstr$)                              ; laenge zielstring -> Stack
   MOVE.l d0,d2
   MOVE.l d2,-(a7)
   SUB #1,d2
 
-  GetReg D0,&put_versionstr$                                   ; kopieren des neuen Strings in den Zielstring
+  GetRegD0  &put_versionstr$                                   ; kopieren des neuen Strings in den Zielstring
   MOVE.l d0,a0
 
  'l1
@@ -25598,10 +25556,10 @@ RTS
   End Select
   Format ""
 
-  GetReg D0,FLen(put_versionstr$)-1
+  GetRegD0  FLen(put_versionstr$)-1
   MOVE.l d0,d2
 
-  GetReg D0,&put_versionstr$                                   ; kopieren des neuen Strings in den Zielstring
+  GetRegD0  &put_versionstr$                                   ; kopieren des neuen Strings in den Zielstring
   MOVE.l d0,a0
 
  'l1
@@ -25647,11 +25605,11 @@ RTS
 ;    condata$ = constring$
 ;
 ;  End Select
-;  GetD0 Len(condata$)                                      ; laenge zielstring -> Stack
+;  GetRegD0  Len(condata$)                                      ; laenge zielstring -> Stack
 ;  MOVE.l d0,d2
 ;  MOVE.l d2,-(a7)
 ;
-;  GetD0 &condata$                                          ; kopieren des neuen Strings in den Zielstring
+;  GetRegD0  &condata$                                          ; kopieren des neuen Strings in den Zielstring
 ;  MOVE.l d0,a0
 ;
 ; 'l1
@@ -25690,12 +25648,12 @@ RTS
 ;
 ;  End Select
 ;
-;  GetD0 Len(condata$)                                      ; laenge zielstring -> Stack
+;  GetRegD0  Len(condata$)                                      ; laenge zielstring -> Stack
 ;  MOVE.l d0,d2
 ;  MOVE.l d2,-(a7)
 ;  SUB #1,d2
 ;
-;  GetD0 &condata$                                          ; kopieren des neuen Strings in den Zielstring
+;  GetRegD0  &condata$                                          ; kopieren des neuen Strings in den Zielstring
 ;  MOVE.l d0,a0
 ;
 ; 'l1
@@ -25819,7 +25777,7 @@ End Function
     incFile = Peek.s(&incFile)
     Poke$ ?namebuffer,incFile
   
-    il.b = FLen(incFile) : GetReg d0,il : MOVE.l d0,incfilenamelength
+    il.b = FLen(incFile) : GetRegD0  il : MOVE.l d0,incfilenamelength
   End If
 
   !asm
@@ -25850,7 +25808,7 @@ RTS
     Poke$ ?namebuffer,incFile
   End If
 
-  GetReg d0,incLock
+  GetRegD0  incLock
   !asm
 RTS
 
@@ -26100,7 +26058,7 @@ JMP handle_compileerror
   JMP _return
   JMP _return
   JMP _return
-  JMP evalconst                                            ;-90
+  JMP evalconst2                                           ;-90
   JMP Atokejsr                                             ;-84
   JMP writeinit                                            ;-78
   JMP macroexecute                                         ;-72
@@ -26117,20 +26075,21 @@ JMP handle_compileerror
   JMP exit                                                 ;-6
 
 
-.pluginbase
+.pluginbase:
   destpointer:       Ds.l 1                                ; was "pc" org source
-  optimize_integer:  Dc.w 0                                ; optimize 1 = INTEGER
-  optimize_fpu:      Dc.w 0                                ; optimize 2 = FPU
-  optimize_newsyntax:Dc.w 0                                ; optimize 4 = newsyntax
-  optimize_jumps:    Dc.w 0                                ; optimize 8 = jumps
-  ;******************** don't scatter end
+  optimize_config:   Ds.w 1                                ; current optimize configuration
+  optimize_integer:  Ds.w 1                                ; optimize 1 = INTEGER
+  optimize_fpu:      Ds.w 1                                ; optimize 2 = FPU
+  optimize_newsyntax:Ds.w 1                                ; optimize 4 = newsyntax
+  optimize_jumps:    Ds.w 1                                ; optimize 8 = jumps
 
+  ;******************** don't scatter end
 
   optistring         Dc.b 0
   optistring2        Dc.b 0
   optiarray          Dc.b 0
   quickadd           Dc.b 0
-  newmode            Dc.w 0
+  pluginmode         Dc.w 0
   mode               Dc.w 0
   string1            Dc.w 0
   load_var_size      Dc.w 0
@@ -26479,15 +26438,6 @@ RTS
   SUBQ.w #1,debugnest
 RTS
 
-.do_honitos:
-  !regs2stack
-  !basic
-  error{"hallo honitos!"}
-  !asm
-  !stack2regs
-RTS
-
-
 JUMP_runerrsoverflow JMP runerrsoverflow
 JUMP_unpairrunerrs   JMP unpairrunerrs
 
@@ -26495,7 +26445,7 @@ JUMP_unpairrunerrs   JMP unpairrunerrs
 
 .menu_dummyfunc:
   !basic
-  error{!TRANS{"Invalid AmiBlitz3 menu item called!"} }
+  error{"Invalid menu item called!"}
   !asm
 RTS
 
@@ -26506,11 +26456,6 @@ RTS
     BRA.b 'debugoff
  'debugon
     SNE debugmode
-    ;!regs2stack
-    ;!basic
-    ;log2PED{"Debugger turned on"}
-    ;!asm
-    ;!stack2regs
  'debugoff
 RTS
 
@@ -26524,17 +26469,10 @@ RTS
   MOVE.b debugmode,0( a0,d0.w)
 
   SF debugmode
-
-  ;!regs2stack
-  ;!basic
-  ;log2PED{"Debugger turned off"}
-  ;!asm
-  ;!stack2regs
 RTS
 
 
 usedpath:  Ds.l 32
-
 
 .do_USEPATH:
   BEQ.w JUMP_syntaxerr
@@ -26568,19 +26506,11 @@ RTS
 
 .do_usepath2:                            ; copy of do_USEPATH  this is more original
   BEQ.w JUMP_syntaxerr
+
   LEA path2,A0
-  ; new >
-;  MOVEM.l a0-a1/d0,-(a7)
-;  LEA lastpath,a1
-
-; 'l1
-;  MOVE.b (a0)+,(a1)+
-;  BNE 'l1
-;  MOVEM.l (a7)+,a0-a1/d0
-   ; < new
-
  'loop
     TST.w D0 : BMI.w JUMP_syntaxerr
+
     MOVE.b D0,(A0)+
     BSR.w JUMP_get1bytemain
   BNE.w 'loop
@@ -26754,12 +26684,106 @@ JMP do_Macro
 JUMP_illeaerr: JMP illeaerr
 
 
+
+_checkfpu:
+  ;-- cpu / fpu checks
+  MOVEQ #0,d0
+  MOVE.l 4,a0
+  MOVE.w 296(a0),d0                                     ; AttnFlags of execbase
+  LSR.w #4,d0                                           ; skip cpu data, move fpubits to the right
+  AND.w #15,d0
+
+  MOVEQ #0,d1
+ `loop_highest_bit
+    TST.b d0 : BEQ `done_highest_bit
+
+    ADDQ #1,d1
+    LSR #1,d0
+  BRA `loop_highest_bit
+ `done_highest_bit
+  MOVE.l d1, d0
+RTS
+
+.getvalue:  
+  MOVEQ #0,d2
+  SUB.b #$30,d0; : BMI errvalue  ; no number found
+;  CMP.b #$9,d0 : BGT errvalue   ; no number found
+
+  MOVE.b (a5)+,d2               ; check second char
+  SUB.b #$30,d2 : BMI 'one
+  CMP.b #$9,d2 : BGT 'one
+    MULS #10,d0
+    ADD.w d2,d0
+    RTS
+ 'one
+  SUBQ.l #1,a5
+RTS
+
+errnofpu: Dc.b "FPU-Optimization not possible: No FPU is present on this system.",0
+Even
+.do_OPTIMIZE:
+  ;BEQ.w JUMP_syntaxerr ;0 is valid ?
+
+  CLR.w optimize_integer
+  CLR.w optimize_fpu
+  CLR.w optimize_newsyntax
+  CLR.w optimize_jumps
+
+  ;BSR.s getvalue
+  JSR evalconst
+  MOVE.l D3,D0
+
+  MOVE.w d0,optimize_config
+  BTST #0,d0 : BEQ 'l1
+    MOVE.b #1,optimize_integer
+ 'l1
+  BTST #1,d0 : BEQ 'l2
+    MOVE.b #1,optimize_fpu
+ 'l2
+  BTST #2,d0 : BEQ 'l3
+    MOVE.b #1,optimize_newsyntax
+ 'l3
+  BTST #4,d0 : BEQ 'l4
+    MOVE.b #1,optimize_jumps
+ 'l4
+
+  ;-- check if FPU is available and error if not but fpu is on
+  TST.b optimize_fpu : BNE 'no_fpu_optimize
+    MOVEM.l d0-d5/a0-a6,-(a7)
+    BSR.w _checkfpu
+    TST.b d0 : BNE 'fpufound
+      MOVEM.l (a7)+,d0-d5/a0-a6
+      MOVE.l #errnofpu,d0 : JMP error
+   'fpufound
+    MOVEM.l (a7)+,d0-d5/a0-a6
+ 'no_fpu_optimize
+
+  ;-- call setfpumode in string2lib / fpu optimization flag for other libs
+  MOVEM.l d0-d5/a0-a6,-(a7)
+  MOVEQ #0,D0
+  TST.b optimize_fpu : BEQ 'skipfpu
+    BSET #1,D0
+ 'skipfpu
+  MOVEQ #0,d3                 ; AB pre 2.27 hack
+  MOVEQ #0,d5
+  MOVE.w #$203c,d1 : JSR writeword
+  MOVE.l d0,d1 : JSR writelong
+  MOVE.l ##setfpumode,d1 : JSR Atokejsr
+  MOVEM.l (a7)+,d0-d5/a0-a6
+
+  ;BSR.w JUMP_get1bytemain  
+RTS
+
+
+
 .do_SYNTAX:
+  ;BEQ.w JUMP_syntaxerr ;0 is valid ?
   CLR.b syntax_typecheck
   CLR.b syntax_declare
   CLR.b syntax_declare2
 
   SUB.b #$30,d0
+  MOVE.b d0,syntax_config
   BTST #0,d0 : BEQ 'l1
     MOVE.b #1,syntax_declare
  'l1
@@ -26914,11 +26938,11 @@ Return
     condata$ = newconst$
   EndIf
 
-  GetReg D0,FLen(condata$)-1                                    ; laenge zielstring -> Stack
+  GetRegD0  FLen(condata$)-1                                    ; laenge zielstring -> Stack
   MOVE.l d0,d2
   MOVE.l d2,-(a7)
 
-  GetReg D0,&condata$                                          ; kopieren des neuen Strings in den Zielstring
+  GetRegD0  &condata$                                          ; kopieren des neuen Strings in den Zielstring
   MOVE.l d0,a0
 
  'l1
@@ -27098,22 +27122,6 @@ RTS
   MOVE.l #0,globallinecount      ; reset the linecounter
 RTS
 
-.check_fpu_before_run:
-  MOVEQ #0,d0
-  !basic
-  check_fpu_mode.b = PeekB(?optimize_fpu) AND $2
-  If check_fpu_mode
-    If ProcessorFPU = 0
-      error{"The generated code has been optimized to use FPU-features,\\nbut no FPU is present on this system.\\n\\nExecution is not possible."}
-      !asm
-      MOVEQ #1,d0
-      RTS
-    End If
-  End If
-  !asm
-RTS
-
-
 
 .read_userlibsfile:
   If tmp_userlibspointer.l = 0 Then tmp_userlibspointer.l = libdata\ptr_userlibs
@@ -27204,24 +27212,6 @@ Return
 
 
 ;------------------------------- for debugging purpose only ------------------
-
-.log_optimize:
-    !regs2stack
-    !basic
-    ttt.w = PeekW(?optimize_jumps)
-    log2PED{"optimizing JSRs is turned on",#log_debug}
-    !asm
-    !stack2regs
-RTS
-
-.show_optimize:
-    !regs2stack
-    !basic
-    log2PED{"optimize found!",#log_debug}
-    !asm
-    !stack2regs
-RTS
-
 .log_blitzlib:    ; A1: libpointer, D1: libnum
     !regs2stack
     !basic
@@ -27229,9 +27219,8 @@ RTS
     PutReg A1,libaddr.l
 
     ; struct lib
-    ; 
-    If libaddr = 0
-      log2PED{"no data for lib #" + Str$(libnum2) + " at adress #" + Hex$(libaddr),#log_error}
+    If libaddr.l = 0
+      log2PED{"no data for lib #" + Str$(libnum2.l) + " at address #" + Hex$(libaddr),#log_error}
     Else
       libnum2.l = PeekW(libaddr + $4) AND $FFFF
       libsize.l = PeekL(libaddr + $6) - PeekL(libaddr + $12)
@@ -27268,8 +27257,11 @@ RTS
           !ComData_GetL{comPtr_PreProcessor,include_preprocessor} : *tn.preprocessor = PeekL(?include_preprocessor)
           written.l = preproc_DetokenizeLine{*tn, PeekL(?lastsourcepos), &detokenline}
           If written > 0 
-            PokeB &detokenline + written,0
-            If written > 128 Then Poke.s &detokenline + 128, "..." + Chr$(0)
+            If written > 128 
+              Poke.s &detokenline + 128, "..." + Chr$(0)
+            Else
+              PokeB &detokenline + written,0
+            EndIf
             strline.s = Trim$(Peek.s(&detokenline))
             logmess + "| " + strline
           EndIf
@@ -27409,7 +27401,8 @@ instructionbase:                                                     ;atokens or
            Dc.l do_Object
            Dc.l do_usepath2
            Dc.l do_LastRunErrsMode
-           Dc.l do_honitos
+           Dc.l syntaxerr
+           Dc.l do_OPTIMIZE
 atokensend:
 
 ;.compilermenu_entries:
@@ -27920,7 +27913,9 @@ storedebugmode       Ds.b 20
 funcparloop          Ds.b 1                   ; is 1 when function calling parameter are compile
 blitzparloop         Ds.b 1                   ; is 1 when blitzlib calling parameters are compile
 nostringopt          Ds.w 1
-path2:               Ds.l 32
+lastpath             Ds.b 128
+lastpath2            Ds.b 128
+path2                Ds.b 128
 
 typebase             Ds.l 1
 doublepeek           Ds.w 1
@@ -27971,10 +27966,13 @@ notypecheck          Ds.b 1
 vartype              Ds.w 1
 peekaddrsize         Ds.b 1
 lasttoken            Ds.l 1
+
+syntax_config        Ds.b 1
 syntax_declare2      Ds.b 1
 newvariable          Ds.w 1
 syntax_declare       Ds.b 1
 syntax_typecheck     Ds.b 1
+
 nowdeclare           Ds.b 1
 dimkeep              Ds.b 1
 a4a5store            Ds.b 1
@@ -28019,8 +28017,6 @@ variablehash         Ds.l 8192
 newinitaddr          Ds.l 1
 realbssend           Ds.l 1
 saved0               Ds.w 1
-lastpath             Ds.b 128
-lastpath2            Ds.b 128
 fpustackbase         Ds.w 100
 lastconstantvalue    Ds.l 1  ; the value of the constant expression used in Function Parameter.check isconstantvalue <> 0 if its valid
 isconstantvalue      Ds.w 1  ; contain a type (1-7) if a constant expression is used as a Parameter or on right side of =
@@ -28035,6 +28031,7 @@ templibend           Ds.l 1
 tempdata1start       Ds.l 1
 stacktrack           Ds.l 1
 pad                  Ds.l 1
+str_cliarguments:    Ds.b 255    ; a command line can actually be 255 characters long
 includetemp          Ds.b 256
 includetemp2         Ds.b 256*10
 funccall             Ds.w 1

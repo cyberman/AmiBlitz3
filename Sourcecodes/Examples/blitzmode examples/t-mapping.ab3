@@ -1,0 +1,414 @@
+; XTRA
+; Embedded .xtra Header
+; 
+; General Info
+; -------------------------------------------------------
+; ExePath         = ""
+; ExeFile         = ""
+; CreateIcon      = 0
+; Residents       = ""
+; 
+; Compiler
+; -------------------------------------------------------
+; StringBuffer    = 10240
+; MakeSmallest    = 0
+; FuncOptimize    = 0
+; Version         = 0.0.0
+; NumberOfBuilds  = 4
+; 
+; Debugger
+; -------------------------------------------------------
+; CliArgs         = ""
+; StackSize       = 8191
+; RuntimeDebug    = 1
+; DebugInfo       = 0
+; CreateDbgFile   = 0
+; OverflowCheck   = 0
+; AssemblerCheck  = 0
+; InterruptCheck  = 1
+; AutoRun         = 1
+; 
+; Editor
+; -------------------------------------------------------
+; CursorLine      = 11
+; CursorColumn    = 2
+; LabelSearch     = ""
+; LabelRemark     = 0
+; LabelAll        = 0
+; LabelCase       = 0
+; LabelPosition   = 0
+; 
+; Blitz Objects
+; -------------------------------------------------------
+; Max File        = 5
+; Max GadgetList  = 5
+; Max Shape       = 100
+; Max Bank        = 5
+; Max MenuList    = 5
+; Max GTList      = 20
+; Max BitMap      = 10
+; Max Screen      = 5
+; Max IntuiFont   = 5
+; Max Window      = 20
+; Max Palette     = 32
+; Max BlitzFont   = 4
+; Max IconInfo    = 1
+; Max MUIObject   = 50
+; Max AsyncReq    = 4
+; Max Req-Lib     = 5
+; Max GTMenuList  = 5
+; Max Console     = 5
+; Max TCPSock     = 5
+; Max Tape        = 5
+; Max TagList     = 5
+; Max Database    = 16
+; Max Sound       = 10
+; Max MedModule   = 8
+; Max Buffer      = 10
+; Max Queue       = 10
+; Max Sprite      = 20
+; Max Module      = 5
+; Max Slice       = 10
+; Max Page        = 4
+; Max CopList     = 10
+; Max PTModule    = 5
+; Max Anim        = 10
+; Max NChunky     = 50
+; Max Chunky      = 20
+; Max Stencil     = 5
+; Max XBSound     = 10
+; /XTRA
+;
+; slow!! texturemapping
+; (c) pink/abyss aka Manfred Linzner
+; email: Manfred.Linzner@munich.netsurf.de
+;
+;
+; Hold both Mouse Buttons to quit
+
+
+;SetErr:End:End SetErr
+
+
+.define_vars
+
+db.b=1
+a.w=0:b.w=0:c.w=0:d.w=0:e.w=0    ; wordsized! work around variables!
+a1.l=0                           ; lwordsized! work around
+scal.w=0                         ; work around
+stepy.b=0
+xdelta.q=0                       ; floating-point x-delta
+xstart.q=0                       ; floating-point x-start
+xdeltal.q=0                      ; floating-point x-delta
+xstartl.q=0                      ; floating-point x-start
+ydelta.q=0                       ; floating-point y-delta
+ystart.q=0                       ; floating-point y-start
+ydeltal.q=0                      ; floating-point y-delta
+ystartl.q=0                      ; floating-point y-start
+triline1.b=0                     ; which triangle-line to draw
+triline2.b=0                     ; which triangle-line to draw
+xbuffer.l=0                      ; work buffer pointer
+lightbuffer.l=0                  ; phong light buffer pointer
+texturebuffer.l=0                ; phong texture pointer
+x.w=0:y.w=0:z.w=0:               ; work around variables!
+x1.w=0                           ; work around variables!
+x2.w=0:y2.w=0:z2.w=0:            ; work around variables!
+xs.q=0:ys.q=0:zs.q=0:            ; work around variables!
+y1.q=0:z1.q=0               ; work around variables!
+nangle.w=0                  ; normal (90 degree) angle b
+light.w=0                   ; scaled angle (for used colours!)
+ax.w=0:ay.w=0:az.w=0        ;
+bx.w=0:by.w=0:bz.w=0        ; to calc normals
+nx.w=0:ny.w=0:nz.w=0        ;
+norm1.q=0                   ;
+norm2.q=0                   ;
+xn.l=0:zn.l=0:yn.l=0
+
+Dim x.w(3),y.w(3),z.w(3),lightx.w(3),lighty.w(3),enviroy.w(256)
+Dim phonglight.w(256),faceslist.w(4096)
+
+For a=0 To 4096
+  faceslist(a)=4096-a
+Next a                      ; initialise sort-index list
+
+scalarcheck.b=0             ; flag if triangle should be drawed
+
+anglex.w=0:angley.w=0:anglez.w=0           ; angle (x,y,z) start
+angleaddx.b=4:angleaddy.b=4:angleaddz.b=4  ; anglespeed (x,y,z)
+
+objadr.l=?obj1       ; current object adress
+
+sobfaces.w=0         ; number of faces (current object)
+sobpoints.w=0        ; number of points (current object)
+
+;*****  Vektor-Object Structure  *******
+objpolynum.w=0       ; offset -> surfaces number
+objpointsnum.w=2     ; offset -> points number
+objpoints.w=0        ; offset -> points (first all x, then all y)
+objfaces.w=0         ; offset -> faces (=objpoints+objpoints*4)
+;*****  End Vektor-Object Structure  ***
+
+Dim si.q(360*2),co.q(360*2)
+
+For a=0 To 360*2
+  si(a)=Sin(a/180*Pi)
+  co(a)=Cos(a/180*Pi)
+Next a
+
+
+VWait50:BLITZ
+
+Gosub openscreen
+
+.mainloop
+VWait:DisplayBitMap 0,db
+db=1-db:Use BitMap db:Boxf 75,30,230,100,0
+
+;For a=1 To Ticks
+;Plot a,0,15
+anglex=anglex+angleaddx:If anglex>359 Then anglex=0
+angley=angley+angleaddy:If angley>359 Then angley=0
+anglez=anglez+angleaddz:If anglez>359 Then anglez=0
+;Next a
+;ResetTimer
+
+Gosub rotatecoords
+;Gosub sortfaces
+Gosub triengine
+If Joyb(0)=3 Then End
+joyloop:If Joyb(0)=1 Then Goto joyloop
+Goto mainloop
+
+
+.triengine
+
+  sobfaces=Peek.w(objadr+objpolynum)
+  sobpoints=Peek.w(objadr+objpolynum+objpointsnum)
+
+  For scal=0 To sobfaces*3-1 Step 3
+    dd=1-dd
+    a1=objadr+objpolynum+objpointsnum+sobpoints*6+scal+scal+2
+
+    b=Peek.w(a1)
+    c=Peek.w(a1+2)
+    d=Peek.w(a1+4)
+
+    x(1)=Peek.w(?objrotatebuffer+b+b)
+    y(1)=Peek.w(?objrotatebuffer+sobpoints+sobpoints+b+b)
+
+    x(2)=Peek.w(?objrotatebuffer+c+c)
+    y(2)=Peek.w(?objrotatebuffer+sobpoints+sobpoints+c+c)
+
+    x(3)=Peek.w(?objrotatebuffer+d+d)
+    y(3)=Peek.w(?objrotatebuffer+sobpoints+sobpoints+d+d)
+
+    If dd=0
+      lightx(1)=0
+      lighty(1)=0
+      lightx(2)=63
+      lighty(2)=63
+      lightx(3)=0
+      lighty(3)=63
+    Else
+      lightx(1)=0
+      lighty(1)=0
+      lightx(2)=63
+      lighty(2)=0
+      lightx(3)=63
+      lighty(3)=63
+    EndIf
+
+    a=(x(1)-x(2))*(y(3)-y(2))-(y(1)-y(2))*(x(3)-x(2))
+
+    scalarcheck=0
+    If a<0 Then scalarcheck=1
+
+    If scalarcheck
+      Gosub sorttriangle
+
+      triline1=2:triline2=1
+      xbuffer=?xleftbuffer
+      lightbuffer=?leftlightbuffer
+      texturebuffer=?lefttexturebuffer
+      Gosub storetriangle
+
+      triline2=3
+      If y(3)<y(2) Then xbuffer=?xrightbuffer:lightbuffer=?rightlightbuffer:texturebuffer=?righttexturebuffer
+      Gosub storetriangle
+
+      triline1=1
+      xbuffer=?xrightbuffer:lightbuffer=?rightlightbuffer
+      texturebuffer=?righttexturebuffer
+      Gosub storetriangle
+      Gosub drawtriangle
+    EndIf
+  Next scal
+Return
+
+.sorttriangle
+  b=1
+  If y(2)<y(1) Then If y(2)<y(3) Then b=2   ; ^highest point
+  If y(3)<y(1) Then If y(3)<y(2) Then b=3   ;  in triangle
+  If b=2
+  b=y(1):y(1)=y(2):y(2)=y(3):y(3)=b
+  b=x(1):x(1)=x(2):x(2)=x(3):x(3)=b
+  b=lightx(1):lightx(1)=lightx(2):lightx(2)=lightx(3):lightx(3)=b
+  b=lighty(1):lighty(1)=lighty(2):lighty(2)=lighty(3):lighty(3)=b
+  EndIf
+  If b=3
+  b=y(1):y(1)=y(3):y(3)=y(2):y(2)=b
+  b=x(1):x(1)=x(3):x(3)=x(2):x(2)=b
+  b=lightx(1):lightx(1)=lightx(3):lightx(3)=lightx(2):lightx(2)=b
+  b=lighty(1):lighty(1)=lighty(3):lighty(3)=lighty(2):lighty(2)=b
+  EndIf
+Return
+
+
+.storetriangle
+  a=y(triline2)-y(triline1)                ; get y delta
+  b=x(triline2)-x(triline1)                ; get x delta
+  xdelta=1
+  If a<>0 Then xdelta=b/Abs(a)
+  xstart=x(triline1)
+  stepy=1
+
+  a=y(triline2)-y(triline1)                ; get light y delta
+  b=lightx(triline2)-lightx(triline1)      ; get light x delta
+  xdeltal=1
+  If a<>0 Then xdeltal=b/Abs(a)
+  xstartl=lightx(triline1)
+
+  If y(triline2)<y(triline1) Then stepy=-1
+  For b=y(triline1) To y(triline2) Step stepy
+    Poke.w xbuffer+b+b,xstart
+    Poke.w lightbuffer+b+b,xstartl
+    xstart=xstart+xdelta
+    xstartl=xstartl+xdeltal
+  Next b
+
+  a=y(triline2)-y(triline1)                ; get y delta
+  b=lighty(triline2)-lighty(triline1)      ; get x delta
+  xdelta=1
+  If a<>0 Then xdelta=b/Abs(a)
+  xstart=lighty(triline1)
+
+  For b=y(triline1) To y(triline2) Step stepy
+    Poke.w (texturebuffer+b+b),xstart
+    xstart=xstart+xdelta
+  Next b
+Return
+
+
+.drawtriangle
+  If y(2)>y(3) Then y(3)=y(2)
+  If y(3)<y(1) Then a=y(3):y(3)=y(1):y(1)=a
+  For a=y(1) To y(3)
+
+  b=Peek.w(?xleftbuffer+a+a)
+  c=Peek.w(?xrightbuffer+a+a)
+  xdelta=Peek.w(?leftlightbuffer+a+a)-Peek.w(?rightlightbuffer+a+a)
+  xdelta=xdelta/(b-c)
+  xstart=Peek.w(?rightlightbuffer+a+a)
+
+  ydelta=Peek.w(?lefttexturebuffer+a+a)-Peek.w(?righttexturebuffer+a+a)
+  ydelta=ydelta/(b-c)
+  ystart=Peek.w(?righttexturebuffer+a+a)
+
+  stepy=1:If b<c Then stepy=-1:xdelta=-xdelta:ydelta=-ydelta
+
+  For d=c To b Step stepy
+    Use BitMap 2
+    e=Point(xstart,ystart)
+    Use BitMap db
+    Plot d,a,e
+    xstart=xstart+xdelta
+    ystart=ystart+ydelta
+  Next d
+  Next a
+Return
+
+
+.rotatecoords
+  sobpoints=Peek.w(objadr+objpointsnum)
+
+  For a=0 To sobpoints-1
+
+  a1=objadr+4+a*6
+
+  x=Peek.w(a1)     ; a+a weil word!
+  y=Peek.w(a1+2)   ; a+a weil word!
+  z=Peek.w(a1+4)   ; a+a weil word!
+
+  xs=x*co(anglex) - y*si(anglex)  ; x-Achse
+  ys=x*si(anglex) + y*co(anglex)  ;
+
+  y1=ys*co(angley) - z*si(angley)    ; y-Achse
+  z1=ys*si(angley) + z*co(angley)    ;
+
+  zs=z1*co(anglez) - xs*si(anglez)      ; z-Achse
+  xs=z1*si(anglez) + xs*co(anglez)      ;
+
+  .Projectto2d
+
+  x=160+(xs ASL 7)/(425-zs)  ; 3-D Transfomration
+  y=64+(y1 ASL 6)/(425-zs)   ;
+
+  Poke.w ?objrotatebuffer+a+a,x
+  Poke.w ?objrotatebuffer+sobpoints+sobpoints+a+a,y
+
+  Next a
+Return
+
+
+.openscreen
+  BitMap 2,64,64,5:DecodeILBM 2,?phongpic
+  BitMap 1,320,256,5
+  BitMap 0,320,256,5
+
+  InitCopList 0,44,256,$0005,8,32,-2
+  DisplayBitMap 0,0
+  DisplayDblScan 0,1
+
+  DecodePalette 0,?pal
+
+  DisplayPalette 0,0
+
+  CreateDisplay 0
+Return
+
+
+phongpic
+IncBin "data/phong5.iff"
+
+pal
+IncBin "data/phong5.pal"
+
+obj1
+IncBin "data/obj.tetra"
+
+objrotatebuffer
+Ds.b 4096
+
+objzbuffer
+Ds.b 4096
+
+leftlightbuffer
+Ds.l 4096
+
+rightlightbuffer
+Ds.l 4096
+
+objphongbuffer
+Ds.l 4096
+
+xleftbuffer
+Ds.w 256
+
+xrightbuffer
+Ds.w 256
+
+lefttexturebuffer
+Ds.w 256
+
+righttexturebuffer
+Ds.w 256

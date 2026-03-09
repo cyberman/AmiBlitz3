@@ -201,8 +201,8 @@ Message:                                           ; Message that are send to th
 
 
 MsgPortPointer_backup:                             ; backup of the own MessagePort pointer
-    Dc.l    $00000000
-    Dc.w    $001C                                  ; 
+    Dc.l    $00000000                              ; ReplyPort for debugger (this is ME!)
+    Dc.w    $001C                                  ; mn_Length,28 bytes
 
 
 DataOfOwnTask:

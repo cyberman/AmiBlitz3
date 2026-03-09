@@ -1,0 +1,33 @@
+@DATABASE NC2P
+@NODE MAIN "NC2P"
+
+    @{b}C2P General Information:@{ub}
+
+  @{" c2p040_320_200    " LINK c2p040_320_200} Statement (String)
+  @{" c2p040_320_256    " LINK c2p040_320_256} Statement
+
+@ENDNODE
+
+
+@NODE c2p040_320_200
+
+    @{b}SYNTAX@{ub}
+  c2p040_320_200 ChunkyBufferAdress, BitmapAdress
+
+    @{b}FUNCTION@{ub}
+  Does an 68040 optimized chunky to planar conversion.
+  Is hard coded to a chunky bitmap with the dimensions 320x200 with one byte as color information.
+
+@ENDNODE
+
+
+@NODE c2p040_320_256
+
+    @{b}SYNTAX@{ub}
+  c2p040_320_256 ChunkyBufferAdress, BitmapAdress
+
+    @{b}STATEMENT@{ub}
+  Does an 68040 optimized chunky to planar conversion.
+  Is hard coded to a chunky bitmap with the dimensions 320x256 with one byte as color information.
+  
+@ENDNODE

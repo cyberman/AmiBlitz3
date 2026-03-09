@@ -1,0 +1,250 @@
+; XTRA
+; Embedded .xtra Header
+; 
+; General Info
+; -------------------------------------------------------
+; ExePath         = ""
+; ExeFile         = ""
+; CreateIcon      = 1
+; Residents       = ",all.res"
+; 
+; Compiler
+; -------------------------------------------------------
+; StringBuffer    = 10240
+; MakeSmallest    = 0
+; FuncOptimize    = 0
+; Version         = 0.0.0
+; NumberOfBuilds  = 21
+; 
+; Debugger
+; -------------------------------------------------------
+; CliArgs         = ""
+; StackSize       = 8191
+; RuntimeDebug    = 1
+; DebugInfo       = 0
+; CreateDbgFile   = 0
+; OverflowCheck   = 0
+; AssemblerCheck  = 0
+; InterruptCheck  = 1
+; AutoRun         = 1
+; 
+; Editor
+; -------------------------------------------------------
+; CursorLine      = 135
+; CursorColumn    = 20
+; LabelSearch     = ""
+; LabelRemark     = 0
+; LabelAll        = 0
+; LabelCase       = 0
+; LabelPosition   = 0
+; 
+; Blitz Objects
+; -------------------------------------------------------
+; Max File        = 5
+; Max GadgetList  = 5
+; Max Shape       = 100
+; Max Bank        = 5
+; Max MenuList    = 5
+; Max GTList      = 20
+; Max BitMap      = 10
+; Max Screen      = 5
+; Max IntuiFont   = 5
+; Max Window      = 20
+; Max Palette     = 4
+; Max BlitzFont   = 4
+; Max IconInfo    = 1
+; Max MUIObject   = 50
+; Max AsyncReq    = 4
+; Max Req-Lib     = 5
+; Max GTMenuList  = 5
+; Max Console     = 5
+; Max TCPSock     = 5
+; Max Tape        = 5
+; Max TagList     = 5
+; Max Database    = 16
+; Max Sound       = 10
+; Max MedModule   = 8
+; Max Buffer      = 10
+; Max Queue       = 10
+; Max Sprite      = 20
+; Max Module      = 5
+; Max Slice       = 10
+; Max Page        = 4
+; Max CopList     = 10
+; Max PTModule    = 5
+; Max Anim        = 10
+; Max NChunky     = 50
+; Max Chunky      = 20
+; Max Stencil     = 5
+; Max XBSound     = 10
+; /XTRA
+;         .      [][][][][][][][][][][][][][][][][][][][][][][][][][]
+;         .      []                                                []##
+;~~~~~~~~o~~~~~~~[]  Starfield demo 1 - v0.1                       []##
+;       o     .  []                                                []##
+;     O       .  []  Written in Blitz BASIC II from Acid Software  []##
+; ><>    .    o  []                                                []##
+;     _  o    o__[]  Written by FISH.  (c) FISH 1996               []##
+; __ / \ o  __/  []                                                []##
+;/ _X   \__/ X  _[][][][][][][][][][][][][][][][][][][][][][][][][][]##
+;_/  \/\ \ \/ \/   ####################################################
+
+; This code is copyright by FISH, but special permission has been
+; granted to Acid Software and it's representatives to use this code
+; for demonstration purposes only.
+; You may also use this code, change it and learn from it - but if you
+; use this in a publically distributed program then please give me a
+; small mention somewhere...?  Thanks!! :->
+;
+; ><> ><> ><> ><> ><> ><> ><> ><> ><> ><> ><> ><> ><> ><> ><> ><> ><> ><>
+;
+; Program: Displays a parallax scrolling starfield using only one
+; sprite for the entire display!!!!!  Uses a fair bit of 68000 for speed!
+;
+; Known bugs: Not really bugs, but there are two small fixes you may
+; wish to try:
+; 1) The spread value used to create an apparant random spread of stars
+;    is a bit naff.  You may wish to replace it with some code to access
+;    a table of random x positions... unless you can think of an even better
+;    solution?
+; 2) The sprite x position requires 9 bits to store, and the LSB is actually
+;    stored in a different place to the most significant 8 bits.  In a fit
+;    of extreme laziness I decided to ignore the LSB, and thus the stars
+;    have a horizontal resolution of only 160 pixels.  If you fancy adding
+;    some clever boolean and bit shift ops you could bring this bit into
+;    play for slower/smoother scrolling.  (AGA users could even make the
+;    scrolling 8 times more smooth if they wanted!!)
+
+
+SetErr:End:End SetErr
+
+
+; Taken from Blitzlibs:bb2objtypes.bb2
+;
+NEWTYPE.sprite ;size=16
+  _data.l      ;00: NULL if no sprite present, else pointer to sprite data
+  _height.w    ;04: height of sprite, in pixels, plus an extra 1
+  _channels.w  ;06: number of sprite channels required to display sprite
+  _flags.w     ;08: low byte = pix width of sprite, hi bit = 1 if 16 colour sprite
+  _nextoff.w   ;10: difference in bytes between seperate sprites for separate sprite channels
+  _xhandle.w   ;12: horizontal handle for sprite
+  _yhandle.w   ;14: vertical handle for sprite
+End NEWTYPE
+
+
+DEFTYPE .l  a
+DEFTYPE .l  x , y , cnt
+DEFTYPE .w  *coppnt
+DEFTYPE .sprite *sprpnt
+
+
+; -----Initialise the stars in a sprite
+Statement init_star_data {spr.l,speed.l}
+    UNLK    a4
+    MOVE.l  d0,a0               ; Move address of sprite data to addr reg
+    MOVE.l  d1,a1               ; Move address of speed data to addr reg
+    ; -----Init vars
+    MOVE.l  #50,d0              ; Start line of sprites on display
+    MOVE.l  #51,d1              ; Stop line of sprite on display
+    MOVE.l  #127,d2             ; Counter = 128 times
+    MOVE.l  #0,d3               ; Spread value
+    ; -----Main loop
+loop1:
+    MOVE.b  d0,(a0)             ; Set vert start position
+    ADD.l   #1,a0               ; ----Next byte----
+    CLR.w   d4                  ; Clear d4
+    MOVE.b  (a1),d4             ; Horiz pos = speed.....
+    ADD.b   d3,d4               ; ... + spread val
+    MOVE.b  d4,(a0)             ; Set horiz start position
+    ADD.l   #1,a0               ; ----Next byte----
+    MOVE.b  d1,(a0)             ; Set vertical stop pos
+    ADD.l   #1,a0               ; ----Next byte----
+    MOVE.b  #0,(a0)             ; Set byte to 0
+    MOVE.l  d0,d4               ; Copy vert pos to d4
+    AND.w   #$ff00,d4           ; Are we over the 256 boundary?
+    BEQ     l1                  ; If not skip...
+    MOVE.b  #6,(a0)             ; ...Move %00000110
+l1: ADD.l   #1,a0               ; ----Next byte----
+
+    MOVE.l  #$0f0f00ff,d4       ; Sprite image 2 planes (!!change this!!)
+    MOVE.l  d4,(a0)             ; Set sprite image
+    ADD.l   #4,a0               ; ----Next sprite----
+
+    ADD.l   #2,d0               ; Vert start pos += 2
+    ADD.l   #2,d1               ; Vert stop pos += 2
+    ADD.l   #1,a1               ; Next speed
+    ADD.b   #179,d3             ; Next spread value (179 seems good)
+    DBF     d2,loop1
+
+    RTS
+End Statement
+
+
+; -----Moves stars
+Statement scroll_stars {spr.l,speed.l}
+    UNLK    a4
+    MOVE.l  d0,a0               ; Move address of sprite data to addr reg
+    MOVE.l  d1,a1               ; Move address of speed data to addr reg
+    ADD.l   #1,a0               ; Push sprite data addr to point to horiz pos
+    ; -----Init vars
+    MOVE.l  #127,d2             ; Counter = 128 times
+    ; -----Main loop
+loop2:
+    MOVE.b  (a0),d0             ; Get current horizonal pos
+    MOVE.b  (a1),d1             ; Get current speed
+    SUB.b   d1,d0               ; Do speed (!!change this to move right!!)
+    MOVE.b  d0,(a0)             ; Store new horiz pos
+
+    ADD.l   #8,a0               ; Next sprite image
+    ADD.l   #1,a1               ; Next speed
+    DBF     d2,loop2
+
+    RTS
+End Statement
+
+
+
+WBStartup : NoCli
+
+BLITZ
+Gosub init_display
+
+InitShape 0,16,256,2 : GetaSprite 0,0
+init_star_data{ Peek.l (Addr Sprite(0)) , ?star_speeds }
+*sprpnt=Addr Sprite(0) : a=*sprpnt\_height : *sprpnt\_height=1
+DisplaySprite 0,0,160,0,0 : *sprpnt\_height=a
+
+
+Repeat
+    Poke.w $dff180,$0f00    ; -----Measures 68000 speed (!!remove!!)
+    scroll_stars{ Peek.l (Addr Sprite(0)) , ?star_speeds }
+    Poke.w $dff180,$0000    ; -----Measures 68000 speed (!!remove!!)
+    VWait
+Until Joyb(0)
+AMIGA
+
+Free BitMap 0
+Free Palette 0
+End
+
+
+
+BLITZ
+
+init_display:
+  BitMap 0,320,256,2
+  InitPalette 0,32
+  PalRGB 0,17,0,$0,$8 : PalRGB 0,18,$0,$0,$5
+  PalRGB 0,19,$0,$0,$2: PalRGB 0,1,$f,$f,$f : Colour 1
+  InitCopList 0,40,256,$402,8,32,128
+  VWait : CreateDisplay 0
+  DisplayBitMap 0,0 : DisplayPalette 0,0,0
+Return
+
+
+Even
+star_speeds:
+Dc.b    2,1,4,3,2,3,2,4,1,3,1,4,2,3,1,2,3,4,1,4,3,1,2,1,4,3,2,1,4,3,2,4
+Dc.b    3,4,2,3,4,2,3,1,4,2,4,3,1,2,4,2,4,1,3,2,1,4,2,1,4,3,1,4,2,3,4,3
+Dc.b    4,3,1,4,2,1,3,2,1,2,4,3,2,4,3,1,3,2,4,1,3,2,3,4,2,3,1,4,1,3,2,1
+Dc.b    3,1,4,1,2,1,4,1,2,3,2,4,1,2,4,3,2,4,1,3,1,3,2,4,3,1,2,3,1,4,1,2

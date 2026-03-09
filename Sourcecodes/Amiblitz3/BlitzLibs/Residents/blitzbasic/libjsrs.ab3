@@ -3,18 +3,18 @@
 ; 
 ; General Info
 ; -------------------------------------------------------
-; ExePath         = "Development:AmiBlitz3/Sourcecodes/Amiblitz3/BlitzLibs/Residents/blitzbasic"
-; ExeFile         = ""
-; CreateIcon      = 1
+; ExePath         = "Development:AmiBlitz3/BlitzLibs/Residents"
+; ExeFile         = "libjsrs.res"
+; CreateIcon      = 0
 ; Residents       = ""
 ; 
 ; Compiler
 ; -------------------------------------------------------
 ; StringBuffer    = 10240
-; MakeSmallest    = 0
+; MakeSmallest    = 1
 ; FuncOptimize    = 1
 ; Version         = 0.0.0
-; NumberOfBuilds  = 3
+; NumberOfBuilds  = 4
 ; 
 ; Debugger
 ; -------------------------------------------------------
@@ -22,7 +22,7 @@
 ; StackSize       = 80000
 ; RuntimeDebug    = 0
 ; DebugInfo       = 0
-; CreateDbgFile   = 65535
+; CreateDbgFile   = 0
 ; OverflowCheck   = 0
 ; AssemblerCheck  = 0
 ; InterruptCheck  = 1
@@ -30,8 +30,8 @@
 ; 
 ; Editor
 ; -------------------------------------------------------
-; CursorLine      = 189
-; CursorColumn    = 8
+; CursorLine      = 184
+; CursorColumn    = 1
 ; LabelSearch     = ""
 ; LabelRemark     = 0
 ; LabelAll        = 0
@@ -46,11 +46,11 @@
 ; Max Bank        = 5
 ; Max MenuList    = 5
 ; Max GTList      = 20
-; Max Palette     = 4
 ; Max BitMap      = 10
 ; Max Screen      = 5
 ; Max IntuiFont   = 5
 ; Max Window      = 20
+; Max Palette     = 4
 ; Max BlitzFont   = 4
 ; Max IconInfo    = 1
 ; Max MUIObject   = 50
@@ -297,4 +297,4 @@
 ;
 ;********************************************* System library : DEBUGLIB
 ;
-#newmode    = $d500
+#newdbgmode    = $d500

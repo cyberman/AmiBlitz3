@@ -1,28 +1,29 @@
-@DATABASE ChunkyV1.40
-@$VER: Chunky V1.40 (27.01.2007)- Updated by mrodfr.
-@NODE MAIN "Chunky V1.40"
+@DATABASE ChunkyV1.50
+@$VER: Chunky V1.50 (03.03.2026)- Updated by mrodfr / honitos
+@NODE MAIN "Chunky V1.50"
 
-    @{b}Chunky V1.30 General Information:@{ub}
-
-  * Blitz Basic II library number         : #175
-  * Library size when linked to executable: 660 bytes
-  * Number of commands                    : 9
-  * Resources automatically freed at end  : Yes
+    @{b}Chunky V1.50 General Information:@{ub}
 
   NInitChnky() must be put before any other Chunky functions
   or you will enjoy BIG crashes.
 
-    @{b}Commands summary:@{ub}
+  @{b}Commands summary:@{ub}
 
   @{" NChunkyBlit       " LINK NChunkyBlit} Statement
   @{" NChunkyBlock      " LINK NChunkyBlock} Statement
+  @{" NChunkyBoxf       " LINK NChunkyBoxf} Statement  
   @{" NChunkyBuffer     " LINK NChunkyBuffer} Function (Long)
   @{" NChunkyCls        " LINK NChunkyCls} Statement
   @{" NChunkyID         " LINK NChunkyID} Function (Long)
+  @{" NChunkyPoint      " LINK NChunkyPoint} Statement  
   @{" NChunkyPlot       " LINK NChunkyPlot} Statement
   @{" NFreeChunkyBuffer " LINK NFreeChunkyBuffer} Statement
   @{" NInitChunky       " LINK NInitChunky} Function (Boolean)
   @{" NUseChunkyBuffer  " LINK NUseChunkyBuffer} Statement
+
+  @{" NChunkyToBitmapV39 " LINK NChunkyToBitmapV39} Statement
+  @{" NChunkyToBitmapV40 " LINK NChunkyToBitmapV40} Statement
+  Other methods in NC2Plib!
 
 @ENDNODE
 
@@ -61,6 +62,55 @@
 
 @ENDNODE
 
+@NODE NChunkyBoxf
+
+    @{b}SYNTAX@{ub}
+  NChunkyBoxf X1,Y1,X2,Y2,Color
+
+    @{b}STATEMENT@{ub}
+  Draws a filled box into the currently used chunky buffer.
+
+@ENDNODE
+
+@NODE NChunkyPoint
+
+    @{b}SYNTAX@{ub}
+  color.w = NChunkyPoint(X1,Y1)
+
+    @{b}FUNCTION@{ub}
+  Gets the color index from the chunky point of the currently used chunky buffer.
+
+@ENDNODE
+
+
+@NODE NChunkyToBitmapV39
+
+    @{b}SYNTAX@{ub}
+  NChunkyToBitmapV39 #Bitmap
+
+    @{b}STATEMENT@{ub}
+  Does the chunky 2 planar conversion from the currently used chunky buffer to the given Bitmap.
+
+  Uses WritePixelArray8() from graphics.library that needs at least V39 (OS 3.0), as it makes also 
+  use of AllocBitmap().
+  
+  To use optimized c2p-technics, you can use the functions from the Blitzlib NC2Plib
+
+@ENDNODE
+
+
+@NODE NChunkyToBitmapV40
+
+    @{b}SYNTAX@{ub}
+  NChunkyToBitmapV40 #Bitmap
+
+    @{b}STATEMENT@{ub}
+  Does the chunky 2 planar conversion from the currently used chunky buffer to the given Bitmap.
+
+  Uses WriteChunkyPixels() from graphics.library that needs at least V40 (OS 3.1.4)
+  To use optimized c2p-technics, you can use the functions from the Blitzlib NC2Plib
+
+@ENDNODE
 
 @NODE NChunkyBuffer
 

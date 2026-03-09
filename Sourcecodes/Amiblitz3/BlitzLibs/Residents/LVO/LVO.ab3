@@ -385,10 +385,10 @@ CEND
 #_CopySBitMap                = -450
 #_OwnBlitter                 = -$1C8    ; -456
 #_DisownBlit                 = -$1CE    ; -462
-#_InitTmpRas=-468
-#_AskFont=-474
-#_AddFont=-480
-#_RemFont=-486
+#_InitTmpRas                 = -468
+#_AskFont                    = -474
+#_AddFont                    = -480
+#_RemFont                    = -486
 #_AllocRaster=-492
 #_FreeRaster=-498
 #_AndRectRegion=-504
@@ -414,13 +414,89 @@ CEND
 #_AndRegionRegion            = -624
 #_SetRGB4CM                  = -630
 #_BltMaskBitMapRastPort      = -636
+;private
 #_GraphicsReserved1          = -642
 #_GraphicsReserved2          = -648
+;public
 #_AttemptLockLayerRom        = -654
-#_GetVPModeID                = -$318
-#_SetRGB32                   = -$354
-#_GetRGB32                   = -$384
-#_FreeDBufInfo               = -$3cc    ; -972
+;--- functions in V36 or higher (Release 2.0) ---
+#_GfxNew                     = -660
+#_GfxFree                    = -666
+#_GfxAssociate               = -672
+#_BitMapScale                = -678
+#_ScalerDiv                  = -684
+#_TextExtent                 = -690
+#_TextFit                    = -696
+#_GfxLookUp                  = -702
+#_VideoControl               = -708
+#_OpenMonitor                = -714
+#_CloseMonitor               = -720
+#_FindDisplayInfo            = -726
+#_NextDisplayInfo            = -732
+;private
+;graphicsPrivate3()()  -738
+;graphicsPrivate4()()  -744
+;graphicsPrivate5()()  -750
+;public
+#_GetDisplayInfoData         = -756
+#_FontExtent                 = -762
+#_ReadPixelLine8             = -768
+#_WritePixelLine8            = -774
+#_ReadPixelArray8            = -780
+#_WritePixelArray8           = -786
+#_GetVPModeID                = -792
+#_ModeNotAvailable           = -798
+#_WeighTAMatch               = -804
+#_EraseRect                  = -810
+#_ExtendFont                 = -816
+#_StripFont                  = -822
+;--- functions in V39 or higher (Release 3.0) ---
+#_CalcIVG                    = -828
+#_AttachPalExtra             = -834
+#_ObtainBestPenA             = -840
+;private
+;graphicsPrivate6()()  -846
+;public
+#_SetRGB32                   = -852
+#_GetAPen                    = -858
+#_GetBPen                    = -864
+#_GetDrMd                    = -870
+#_GetOutlinePen              = -876
+#_LoadRGB32                  = -882
+#_SetChipRev                 = -888
+#_SetABPenDrMd               = -894 
+#_GetRGB32                   = -900 
+;private
+;graphicsPrivate7()() -906
+;graphicsPrivate8()() -912
+;public
+#_AllocBitMap                = -918
+#_FreeBitMap                 = -924 
+#_GetExtSpriteA              = -930
+#_CoerceMode                 = -936
+#_ChangeVPBitMap             = -942   
+#_ReleasePen                 = -948
+#_ObtainPen                  = -954
+#_GetBitMapAttr              = -960
+#_AllocDBufInfo              = -966
+#_FreeDBufInfo               = -972
+#_SetOutlinePen              = -978
+#_SetWriteMask               = -984
+#_SetMaxPen                  = -990
+#_SetRGB32CM                 = -996
+#_ScrollRasterBF             = -1002
+#_FindColor                  = -1008
+;private
+;graphicsPrivate9()() -1014
+;public
+#_AllocSpriteDataA           = -1020
+#_ChangeExtSpriteA           = -1026
+#_FreeSpriteData             = -1032
+#_SetRPAttrsA                = -1038
+#_GetRPAttrsA                = -1044
+#_BestModeIDA                = -1050
+;--- functions in V40 or higher (Release 3.1) ---
+#_WriteChunkyPixels          = -1056
 
 
 .layers

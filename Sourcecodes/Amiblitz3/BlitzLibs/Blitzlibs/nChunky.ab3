@@ -1,0 +1,502 @@
+; XTRA
+; Embedded .xtra Header
+; 
+; General Info
+; -------------------------------------------------------
+; ExePath         = "Blitz3:BlitzLibs/UserLibs"
+; ExeFile         = "nChunky_new.obj"
+; CreateIcon      = 0
+; Residents       = "libnums.res,libjsrs.res,libmacs.res,LVO.res"
+; 
+; Compiler
+; -------------------------------------------------------
+; StringBuffer    = 10240
+; MakeSmallest    = 1
+; FuncOptimize    = 1
+; Version         = 0.0.0
+; NumberOfBuilds  = 12
+; 
+; Debugger
+; -------------------------------------------------------
+; CliArgs         = ""
+; StackSize       = 8191
+; RuntimeDebug    = 0
+; DebugInfo       = 0
+; CreateDbgFile   = 0
+; OverflowCheck   = 0
+; AssemblerCheck  = 0
+; InterruptCheck  = 0
+; AutoRun         = 0
+; 
+; Editor
+; -------------------------------------------------------
+; CursorLine      = 283
+; CursorColumn    = 26
+; LabelSearch     = ""
+; LabelRemark     = 0
+; LabelAll        = 0
+; LabelCase       = 0
+; LabelPosition   = 0
+; 
+; Blitz Objects
+; -------------------------------------------------------
+; Max File        = 5
+; Max GadgetList  = 5
+; Max Shape       = 100
+; Max Bank        = 5
+; Max MenuList    = 5
+; Max GTList      = 20
+; Max BitMap      = 10
+; Max Screen      = 5
+; Max IntuiFont   = 5
+; Max Window      = 20
+; Max Palette     = 4
+; Max BlitzFont   = 4
+; Max IconInfo    = 1
+; Max MUIObject   = 50
+; Max AsyncReq    = 4
+; Max Req-Lib     = 5
+; Max GTMenuList  = 5
+; Max Console     = 5
+; Max TCPSock     = 5
+; Max Tape        = 5
+; Max TagList     = 5
+; Max Database    = 16
+; Max Sound       = 10
+; Max MedModule   = 8
+; Max Buffer      = 10
+; Max Queue       = 10
+; Max Sprite      = 20
+; Max Module      = 5
+; Max Slice       = 10
+; Max Page        = 4
+; Max CopList     = 10
+; Max PTModule    = 5
+; Max Anim        = 10
+; Max NChunky     = 50
+; Max Chunky      = 20
+; Max Stencil     = 5
+; Max XBSound     = 10
+; /XTRA
+
+!libheader{#nchunkylib,0,0,finit,0}
+
+!acommand{#long}
+!args{#long,#word,#word}
+!libs
+!subs{do_nchunkybuffer,0,0}
+!name{"NChunkyBuffer","(#Buffer, Width, Height) - Allocate a chunky buffer"}
+
+!astatement
+!args{#word,#word,#long,#word,#word}
+!libs
+!subs{do_nchunkyblit,0,0}
+!name{"NChunkyBlit","ShapeWidth, ShapeHeight, ShapeAddress, X, Y"}
+
+!astatement
+!args{#word,#word,#long,#word,#word}
+!libs
+!subs{do_nchunkyblock,0,0}
+!name{"NChunkyBlock","ShapeWidth, ShapeHeight, ShapeAddress, X, Y"}
+
+!astatement
+!args{#byte}
+!libs
+!subs{do_nchunkycls,0,0}
+!name{"NChunkyCls","Colour"}
+
+!astatement
+!args{#word,#word,#byte}
+!libs
+!subs{do_nchunkyplot,0,0}
+!name{"NChunkyPlot","X, Y, Colour"}
+
+!astatement
+!args{#long}
+!libs
+!subs{do_nusechunkybuffer,0,0}
+!name{"NUseChunkyBuffer","#Buffer"}
+
+!acommand{#long}
+!args{#long}
+!libs
+!subs{do_ninitchunky,0,0}
+!name{"NInitChunky","(#NumObjectMax)"}
+
+!astatement
+!args{#long}
+!libs
+!subs{do_nfreechunkybuffer,0,0}
+!name{"NFreeChunkyBuffer","#Buffer"}
+
+!afunction{#long}
+!args
+!libs
+!subs{do_nchunkyid,0,0}
+!name{"NChunkyID","- Return the chunkybuffer memory pointer"}
+
+!astatement
+!args{#word,#word,#word,#word,#byte}
+!libs
+!subs{do_nchunkyboxf,0,0}
+!name{"NChunkyBoxf","X1, Y1, X2, Y2, Colour"}
+
+!afunction{#byte}
+!args{#word,#word}
+!libs
+!subs{do_nchunkypoint,0,0}
+!name{"NChunkyPoint","(X, Y)"}
+
+!acommand{#byte}
+!args {#word}
+!libs {#bitmaplib,#ia1|#pd0,#graphicslib,#la6}
+!subs {do_nchunkyToBtmV40,0,0}
+!name {"NChunkyToBitmapV40","#Bitmap"}
+
+!acommand{#long}
+!args {#word}
+!libs {#bitmaplib,#ia1|#pd0,#graphicslib,#la6}
+!subs {do_nchunkyToBtmV39,0,0}
+!name {"NChunkyToBitmapV39","#Bitmap"}
+
+
+finit: !nullsub{codefinit,0,0}
+
+!libfin
+; =========================================================
+
+do_nchunkybuffer: ;(d0:#Buffer, d1:Width, d2:Height) 
+  BSR.W setCurrentChunky
+
+  MOVE.W D1,4(A3) ; chunkyWidth
+  MOVE.W D1,D3
+  MOVE.W D2,6(A3) ; chunkyHeight
+  MOVE.W D2,D4
+  ;MULU D1,D2
+  ;MOVE.L D2,8(A3) ; chunkySize
+
+  MOVEQ   #0,D0         ; (((w+15) LSR 4) LSL 4)*h
+  MOVE.w  d3,d0         ;
+  ADD.l   #15,d0        ;
+  LSR     #4,d0         ; AND.l   #$FFFFFFF0,d0 ?
+  LSL     #4,d0         ;
+  ADDQ    #1,D4
+  MULU    d4,d0         ;SizeFast.l = (((w+15) LSR 4) LSL 4)* (h+1)
+  SUBQ    #1,D4
+  MOVE.L D0,8(A3)       ;chunkySize
+
+  ADDI.L #$00000008,D0  ;add 8 bytes ... but for what ?
+  MOVE.L #$00010000,D1  ;#MEMF_CLEAR
+  ALibJsr #globalalloc
+  MOVE.L D0,(A3)
+  LEA ptr_chunky(PC),A0
+  MOVE.L D0,(A0)+ ; put memory address
+  MOVE.W D3,(A0)+ ; chunkyWidth
+  MOVE.W D4,(A0)  ; chunkyHeight
+RTS
+
+.do_nchunkyblit:
+  MOVEA.L D2,A0   ;326: 2042
+  MOVEA.L ptr_chunky(PC),A1  ;328: 227a013a
+  MOVE.W chunkyWidth(PC),D5  ;32c: 3a3a013a
+  MULU D5,D4   ;330: c8c5
+  ADDA.L D4,A1   ;332: d3c4
+  ADDA.W D3,A1   ;334: d2c3
+  CLR.W D2   ;336: 4242
+  CLR.W D3   ;338: 4243
+
+  LAB_0003:
+ CMPI.B #$00,(A0) : BEQ.W LAB_0004  ;33e: 67000006
+   MOVE.B (A0),0(A1,D2.W)  ;342: 13902000
+ LAB_0004:
+ ADDQ.W #1,A0   ;346: 5248
+ ADDQ.W #1,D2   ;348: 5242
+
+ CMP.W D0,D2 : BLT.W LAB_0003  ;34c: 6d00ffec
+ CLR.W D2   ;350: 4242
+ ADDA.W D5,A1   ;352: d2c5
+ ADDQ.W #1,D3   ;354: 5243
+  CMP.W D1,D3 : BLT.W LAB_0003  ;358: 6d00ffe0
+RTS    ;35c: 4e75
+
+.do_nchunkyblock:
+  MOVEA.L D2,A0   ;35e: 2042
+  MOVEA.L ptr_chunky(PC),A1  ;360: 227a0102
+  MOVE.W chunkyWidth(PC),D5  ;364: 3a3a0102
+  MULU D5,D4   ;368: c8c5
+  ADDA.L D4,A1   ;36a: d3c4
+  ADDA.W D3,A1   ;36c: d2c3
+  CLR.W D2   ;36e: 4242
+  CLR.W D3   ;370: 4243
+
+  LAB_0006:
+    MOVE.L (A0)+,0(A1,D2.W) ;372: 23982000
+    ADDQ.L #4,D2   ;376: 5882
+
+ CMP.W D0,D2 : BLT.W LAB_0006  ;37a: 6d00fff6
+    CLR.W D2   ;37e: 4242
+    ADDA.W D5,A1   ;380: d2c5
+    ADDQ.W #1,D3   ;382: 5243
+  CMP.W D1,D3 : BLT.W LAB_0006  ;386: 6d00ffea
+RTS    ;38a: 4e75
+
+.do_nchunkycls:
+  MOVEA.L ptr_chunky(PC),A0
+  MOVE.W chunkyWidth(PC),D1
+  MOVE.W chunkyHeight(PC),D2
+  MULU D1,D2
+  ADDQ.W #4,D2
+  MOVE.L D0,D3
+  LSL.B #8,D3 : OR.B D0,D3
+  LSL.W #8,D3 : OR.B D0,D3
+  LSL.L #8,D3 : OR.B D0,D3
+  LSL.L #8,D3 : OR.B D0,D3
+
+  LAB_0008:
+    SUBQ.W #4,D2   ;3ae: 5942
+    TST.L D2 : BLE.W LAB_0009  ;3b2: 6f000008
+      MOVE.L D3,(A0)+  ;3b6: 20c3
+  BRA.W LAB_0008  ;3b8: 6000fff4
+  LAB_0009:
+RTS
+
+.do_nchunkyplot: ;d0:X, d1:Y, d2:Colour
+  MOVEA.L ptr_chunky(PC),A0
+  MOVE.W chunkyWidth(PC),D3
+  MULU D3,D1
+  ADDA.L D1,A0
+  ADDA.W D0,A0
+  MOVE.B D2,(A0)
+RTS
+
+.do_nchunkyboxf: ;d0:X1, d1:Y1, d2:X2, d3:Y2, d4:Colour
+  MOVEA.L ptr_chunky(PC),A0
+  _loopY:
+  MOVE.W chunkyWidth(PC),D5  
+  MULU    d1,d5           ; d5 = y1*AWidth
+  MOVE.l  d0,d6           ; d6 = x1
+  _loopX:
+  MOVE.l  d5,d7           ; d7 = y1*AWidth
+  ADD.l   d6,d7           ; d7 = x1+(y1*AWidth)
+
+  ANDI.b  #$FF,d4
+  MOVE.b  d4,0(a0,d7.l)   ; Poke d4
+  ADDQ    #1,d6           ; d6 = x1+1
+  CMP.l   d6,d2           ; Tst d6=d2 ?
+  BPL     _loopX          ;
+  ADDQ    #1,d1           ; d2 = y1+1
+  CMP.l   d1,d3           ; Tst d2=d4 ?
+  BPL     _loopY          ;
+RTS
+
+.do_nchunkypoint: ;d0:X1, d1:Y1
+  MOVEA.L ptr_chunky(PC),A0
+  MOVE.W chunkyWidth(PC),D2
+  MULU    d1,d2
+  ADD.l   d0,d2
+  MOVE.b  0(a0,d2.l),d0
+RTS
+
+.do_nusechunkybuffer:
+  BSR.W setCurrentChunky
+
+  LEA ptr_chunky(PC),A0
+  MOVE.L (A3)+,(A0)+
+  MOVE.W (A3)+,(A0)+
+  MOVE.W (A3),(A0)
+RTS
+
+.do_ninitchunky:
+  ADDQ.W #1,D0
+  LEA ptr_execbase(PC),A2 : MOVE.L A6,(A2) ; store execbase
+  LEA ptr_chunky(PC),A2 : MOVE.L D0,8(A2)  ; store maxchunkyIds
+  LSL.L #4,D0                              ; allocate memory for list
+  MOVE.l  #$00010000,d1                    ;#MEMF_ANY|#MEMF_CLEAR
+  ALibJsr #globalalloc
+  MOVE.L D0,12(A2)                         ; store address of chunkylist
+RTS
+
+.do_nfreechunkybuffer:
+  BSR.W setCurrentChunky
+
+  CMPA.L #$00000000,A1 : BEQ.W LAB_000E
+    MOVE.L 8(A3),D0      ; get size of current chunkyId
+    ADDI.L #$00000008,D0 ; add the additional 8 bytes
+    ALibJsr #globalfree
+  MOVE.L #$00000000,(A3)
+  LAB_000E:
+RTS
+
+.do_nchunkyToBtmV40: 
+  BSR     prepareRastPort
+  TST     d5
+  BEQ     skipc2pV40
+                              ; rp comes from prepareRastPort
+    MOVEQ   #0,d0             ; xstart
+    MOVEQ   #0,d1             ; ystart
+    MOVE.w  chunkyWidth,d2    ; xstop
+    MOVE.w  chunkyHeight,d3   ; ystop
+    SUBQ    #1,d2             ;
+    SUBQ    #1,d3             ;
+    MOVEA.l ptr_chunky(PC),A2 ; chunkyarray
+    MOVE.w  chunkyWidth,d4    ; bytesperrow
+
+    JSR     _WriteChunkyPixels(a6) ;rp,xstart,ystart,xstop,ystop,array,bytesperrow
+                                   ;A0 D0     D1     D2    D3    A2    D4
+    MOVEQ   #0,d5
+    MOVE.l  rst1,a1
+    BSR     freeRastPort
+  skipc2pV40:
+
+  MOVE.l  d5,d0
+RTS
+
+.do_nchunkyToBtmV39: 
+  BSR     _prepareV39data
+  CMP     #0,d5 : BLE skipc2pV39
+    MOVEA.l rst1,a0           ;
+    MOVEQ   #0,d0             ;
+    MOVEQ   #0,d1             ;
+    MOVE.w  chunkyWidth,d2    ;
+    MOVE.w  chunkyHeight,d3   ;
+    SUBQ    #1,d2             ;
+    SUBQ    #1,d3             ;
+    MOVEA.l ptr_chunky(PC),a2 ;
+    MOVEA.l rst2,a1           ;
+    JSR _WritePixelArray8(a6) ;rp,xstart,ystart,xstop,ystop,array,temprp)
+                              ;A0 D0:16  D1:16  D2:16 D3:16 A2    A1
+    MOVE.l  d0,d5
+    BSR _freeV39Data
+  skipc2pV39:
+
+  MOVE.l  d5,d0
+RTS
+
+
+codefinit:
+  MOVEA.L ptr_execbase(PC),A6
+  MOVE.L maxChunkyIds(PC),D4
+  LAB_0010:
+    SUBI.L #$00000001,D4
+    MOVE.L D4,D0
+    BSR.W do_nfreechunkybuffer
+  TST.L D4 : BNE.W LAB_0010
+
+  MOVEA.L chunkyList(PC),A1
+  ;MOVE.L maxChunkyIds(PC),D0 : LSL.L #4,D0 ;I guess I found a bug, as D4 is always 0 here
+  MOVE.L D4,D0 : LSL.L #4,D0
+  ALibJsr #globalfree
+RTS
+
+.do_nchunkyid:
+   MOVE.L ptr_chunky(PC),D0
+RTS
+
+.setCurrentChunky:
+  MOVEA.L chunkyList(PC),A3
+  LSL.L #4,D0
+  ADDA.L D0,A3
+  MOVEA.L (A3),A1
+RTS
+
+;-----------------------------
+
+.allocateRastPort:
+  MOVE.l  #$10000,d1         ;#MEMF_ANY|#MEMF_CLEAR
+  MOVE.l  #100,d0            ;SizeOf.RastPort
+  ALibJsr #globalalloc
+RTS
+
+.freeRastPort: ; a1: rastport to free in A1
+  MOVE.l  #100,d0
+  ALibJsr #globalfree
+RTS
+
+.prepareRastPort:
+  MOVE.l  a1,btm            ;Get btm
+  BSR     allocateRastPort  ;Alloc Rastport 1
+  MOVE.l  d0,rst1           ;
+  BNE     initRP            ;No Rastport ?
+    MOVEQ   #0,d5           ;succes=0
+    RTS
+  initRP:
+  MOVEA.l rst1,a1
+  JSR     _InitRastPort(a6) ;
+  MOVEA.l rst1,a0           ; rp
+  MOVE.l  btm ,4(a0)        ;rst1\BitMap=btm
+
+  MOVEQ   #1,d5             ;succes=1
+RTS
+
+_prepareV39data:
+  MOVE.l  a1,btm            ;Get btm
+  BSR     allocateRastPort  ;Alloc Rastport 1
+  MOVE.l  d0,rst1           ;
+  BNE     _AllocRst2        ;No Rastport ?
+    MOVEQ   #-1,d5           ;succes=0
+    RTS
+  _AllocRst2
+  BSR     allocateRastPort  ;Alloc Rastport 2
+  MOVE.l  d0,rst2           ;
+  BNE     _Initbtm2         ;No Rastport ?
+    MOVEA.l rst1,a1         ;
+    BSR freeRastPort
+    MOVEQ   #-2,d5          ;succes=0
+    RTS
+  _Initbtm2                 ; WritePixelArray8 needs a temporary RP for one line of pixels
+
+  MOVEQ   #0,d0
+  MOVE.w  chunkyWidth,d0
+  ADD.l   #15,d0
+  LSR     #4,d0
+  LSL     #4,d0             ;sizex     =((w+15) >> 4) << 4
+  MOVEQ   #1,d1             ;sizey     =1
+  MOVEQ   #0,d2
+  MOVEA.l btm,a0
+  MOVE.b  5(a0),d2          ;depth     =*AddrBtm\Depth
+  MOVEQ   #1,d3             ;flags     =#BMF_CLEAR
+  MOVEQ   #0,d4             ;friend btm=0
+  JSR     _AllocBitMap(a6)  ;AllocBitMap for the temprp
+  MOVE.l  d0,btm2           ;Get btm2: bitmap for temp rastport
+
+  CMP     #0,d0
+  BNE     _InitRst
+    MOVEA.l rst1,a1
+    BSR freeRastPort
+    MOVEA.l rst2,a1
+    BSR freeRastPort
+    MOVEQ   #-3,d5          ;succes=0
+    RTS
+  _InitRst
+
+  MOVEA.l rst1,a1
+  JSR     _InitRastPort(a6)
+  MOVEA.l rst2,a1
+  JSR     _InitRastPort(a6)
+   
+  MOVEA.l rst1,a0           ;
+  MOVE.l  btm,4(a0)         ;rst1\BitMap=btm
+
+  MOVEA.l rst2,a1           ;
+  MOVE.l  #0,(a1)           ;rst2\Layer=0
+  MOVE.l  btm2,4(a1)        ;rst2\BitMap=btm2
+
+  MOVEQ   #1,d5             ;succes=1
+RTS
+
+_freeV39Data:
+  MOVEA.l btm2,a0 : JSR _FreeBitMap(a6)
+  MOVEA.l rst2,a1 : BSR freeRastPort
+  MOVEA.l rst1,a1 : BSR freeRastPort
+RTS
+
+ptr_execbase: Dc.l $00000000
+ptr_chunky:   Dc.l $00000000
+chunkyWidth:  Dc.w $0000
+chunkyHeight: Dc.w $0000
+maxChunkyIds: Dc.l $00000000
+chunkyList:   Dc.l $00000000
+rst1:         Dc.l 0        ; needed for V40 function
+btm:          Dc.l 0
+rst2:         Dc.l 0        ; needed for V39 functions
+btm2:         Dc.l 0

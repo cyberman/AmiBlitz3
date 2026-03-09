@@ -140,34 +140,21 @@
 ; end Blitzlib header
 ;*********************** Code *************************
 
-mymode
-   Dc.w 0
-agamode
-   Dc.w 0
-oldpoke
-   Dc.w 0
-monpoke
-   Dc.w 0
-forbiden
-   Dc.w 0 ;non zero if a 'forbid' is in effect
-blitowned
-   Dc.w 0 ;non zero if we've got the blitter
-oldview
-   Dc.l 0 ;non zero if view disabled!
-grname
-   Dc.b "graphics.library",0
-   Even
-gr
-   Dc.l 0
-cianame
-   Dc.b "ciaa.resource",0
-   Even
-cia
-   Dc.l 0
-key
-   Dc.l 0
-oldcoplist
-   Dc.l 0
+mymode:    Dc.w 0
+agamode:   Dc.w 0
+oldpoke:   Dc.w 0
+monpoke:   Dc.w 0
+forbiden:  Dc.w 0 ;non zero if a 'forbid' is in effect
+blitowned: Dc.w 0 ;non zero if we've got the blitter
+oldview:   Dc.l 0 ;non zero if view disabled!
+grname:    Dc.b "graphics.library",0
+Even
+gr:        Dc.l 0
+cianame:   Dc.b "ciaa.resource",0
+Even
+cia:       Dc.l 0
+key:       Dc.l 0
+oldcoplist:Dc.l 0
 
 
 .doforbid

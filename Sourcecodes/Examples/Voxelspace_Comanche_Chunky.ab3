@@ -1,0 +1,465 @@
+; XTRA
+; Embedded .xtra Header
+; 
+; General Info
+; -------------------------------------------------------
+; ExePath         = "Blitz3:Sourcecodes/Bin"
+; ExeFile         = "dbl_VoxelSpace"
+; CreateIcon      = 0
+; Residents       = "all.res"
+; 
+; Compiler
+; -------------------------------------------------------
+; StringBuffer    = 100000
+; MakeSmallest    = 1
+; FuncOptimize    = 1
+; Version         = 0.0.0
+; NumberOfBuilds  = 1342
+; 
+; Debugger
+; -------------------------------------------------------
+; CliArgs         = ""
+; StackSize       = 8191
+; RuntimeDebug    = 1
+; DebugInfo       = 0
+; CreateDbgFile   = 0
+; OverflowCheck   = 1
+; AssemblerCheck  = 1
+; InterruptCheck  = 0
+; AutoRun         = 1
+; 
+; Editor
+; -------------------------------------------------------
+; CursorLine      = 309
+; CursorColumn    = 44
+; LabelSearch     = "camera\horizon"
+; LabelRemark     = 0
+; LabelAll        = 1
+; LabelCase       = 0
+; LabelPosition   = 0
+; 
+; Blitz Objects
+; -------------------------------------------------------
+; Max File        = 100
+; Max GadgetList  = 100
+; Max Shape       = 200
+; Max Bank        = 1
+; Max MenuList    = 100
+; Max GTList      = 100
+; Max BitMap      = 10
+; Max Screen      = 5
+; Max IntuiFont   = 10
+; Max Window      = 100
+; Max Palette     = 4
+; Max BlitzFont   = 1
+; Max IconInfo    = 1
+; Max MUIObject   = 50
+; Max AsyncReq    = 4
+; Max Req-Lib     = 5
+; Max GTMenuList  = 100
+; Max Console     = 5
+; Max TCPSock     = 5
+; Max Tape        = 5
+; Max TagList     = 5
+; Max Database    = 16
+; Max Sound       = 10
+; Max MedModule   = 8
+; Max Buffer      = 10
+; Max Queue       = 10
+; Max Sprite      = 20
+; Max Module      = 5
+; Max Slice       = 10
+; Max Page        = 4
+; Max CopList     = 10
+; Max PTModule    = 5
+; Max Anim        = 10
+; Max NChunky     = 50
+; Max Chunky      = 20
+; Max Stencil     = 5
+; Max XBSound     = 10
+; /XTRA
+; --
+; -- simple VoxelSpace-Demo conversion
+; --
+; -- inspired by VoxelSpace by Sebastian Macke
+; -- github: https://github.com/s-macke/VoxelSpace/blob/master/VoxelSpace.html
+; --
+OPTIMIZE 7 ; - FPU on strongly advised
+SYNTAX 6
+
+#display_width   = 320 ;640 ;1024
+#display_height  = 200 ;480 ; 768
+#display_depth   = 8
+#display_bgcolor = $9090E0
+
+NEWTYPE.input
+  forwardbackward.q ; change position
+  leftright.q       ; change angle
+  updown.q          ; change height
+  tilt.b            ; tilt of view (horizon)
+End NEWTYPE
+
+NEWTYPE.camera
+  x.q
+  y.q
+  height.q
+  angle.q
+  horizon.q
+  distance.w
+End NEWTYPE
+
+NEWTYPE.map
+  posx.w
+  posy.w
+  scalefactor.q
+  width.w
+  height.w
+
+  scalefx.q
+  scalefy.q
+
+  stepping.b
+  shift.w
+End NEWTYPE
+
+DEFTYPE.input _input
+_input\forwardbackward = 6.0
+
+DEFTYPE.camera camera
+camera\x       = 512.0
+camera\y       = 400.0
+camera\height  = 96.0;78.0
+camera\angle   = 0.0
+camera\horizon = 100.0
+camera\distance= 800
+
+DEFTYPE.map map
+map\width      = 1024
+map\height     = 1024
+map\shift      = 10    ; 1024
+map\stepping   = 8  ; reducable horizontal resolution
+
+
+Dim altitude.b(1024*1024)       ; fix sized array to keep it simple
+Dim color.w(1024*1024)
+Dim hiddenY.w(#display_width)
+
+Macro DrawBackground
+  NChunkyCls 14
+End Macro
+
+Statement Render{}
+  SHARED camera, map, altitude(), color(), hiddenY()
+
+  sinang.q = Sin(camera\angle)
+  cosang.q = Cos(camera\angle)
+
+  ;-- reset hidden lines
+  For x.w = 0 To #display_width
+    hiddenY(x) = #display_height
+  Next x
+
+  ;-- draw from front to back
+
+  deltaz.f = 1.0
+  widthstep.q = (#display_width / map\stepping)
+
+  For z.q = 1 To camera\distance Step deltaz
+    ;-- 90 degree field of view
+    plx.q =  -cosang * z - sinang * z
+    ply.q =   sinang * z - cosang * z
+    prx.q =   cosang * z - sinang * z
+    pry.q =  -sinang * z - cosang * z
+
+    dx.q = (prx - plx) / widthstep
+    dy.q = (pry - ply) / widthstep
+
+    plx + camera\x
+    ply + camera\y
+
+    invz.f = 1.0 / z * 240.0
+
+    For x = 0 To #display_width-1 Step map\stepping
+
+      mapoffset.l = ((Int(ply) AND (map\height-1)) LSL map\shift) + (Int(plx) & (map\width-1))
+
+      alt.w = altitude(mapoffset)
+      color.w = color(mapoffset)
+
+      yscreen.w = (camera\height - alt) * invz + camera\horizon
+
+      ;- draw the vertical block
+      If yscreen < 0 Then yscreen = 0
+      If yscreen <= hiddenY(x)
+        NChunkyBoxf x, yscreen, x + map\stepping, hiddenY(x), color
+        hiddenY(x) = yscreen
+      EndIf
+
+      plx + dx
+      ply + dy
+    Next x
+
+    deltaz + 0.005
+
+  Next z
+
+End Statement
+
+.MAIN
+; -- MAINPROGRAM ------------------------------------------------------------
+WBStartup
+
+; --
+; --  preload map datas
+; --
+NPrint "generating tables..."
+Gosub generate_tables
+
+; --
+; -- alloc chunky buffer and bitmap
+; --
+NInitChunky 0
+NChunkyBuffer 0,#display_width,#display_height
+
+; -- we need a bit more bitmap size for the optimized c2p routine
+; -- it is optimized for copying data 16 bit aligned byte
+*BitmapPtr.l = AllocMem_((#display_width * #display_height) + 1000, #MEMF_CHIP|#MEMF_CLEAR)
+CludgeBitMap 0,#display_width,#display_height,#display_depth,*BitmapPtr + 8
+
+; --
+; -- open the display
+; --
+NPrint "creating display..."
+InitCopList 0,64,#display_height,$10000 + #display_depth,8,256,0
+
+BLITZ
+CreateDisplay 0
+DisplayPalette 0,0
+DisplayBitMap 0,0
+Use BitMap 0
+BitMapOutput 0
+
+Mouse On : BlitzKeys On
+; --
+; -- main loop
+; --
+oldtime.l = 0 : current.l  = 0 : timediff.q = 0.0 : oangle.q = 0
+cmode.b = 0
+
+Repeat
+  current.l = Timer 
+  lastkey.w = BlitzKey
+
+  ; --
+  ; -- render background
+  ; --
+  !DrawBackground
+
+  ; --
+  ; -- render landscape
+  ; --
+  RunErrsOff
+  Render{}
+  RunErrsOn
+
+  ; --
+  ; --  render the map
+  ; --
+  posx.w = map\posx + Int(camera\x * map\scalefx * map\scalefactor)
+  posy.w = map\posy + Int(camera\y * map\scalefy * map\scalefactor)
+  NChunkyBlit chunkyShapeWidth.w,chunkyShapeHeight.w,chunkyShapeAddress.l,map\posx,map\posy
+
+  ; -- position marker
+  NChunkyBoxf posx,posy,posx+1,posy+1,Int(Rnd(32))
+
+  ; -------------------------------------------------------------------------------------------
+  ; -- do the chunky to planar conversion
+  ; -------------------------------------------------------------------------------------------
+  Select cmode
+  Case 0
+    NChunkyToBitmapV39 0    ; uses WritePixelArray8
+  Case 1
+    NChunkyToBitmapV40 0    ; uses WriteChunkyPixels
+  Case 2
+    c2p040_320_200 NChunkyID, *BitmapPtr+4
+  End Select
+
+  ; --
+  ; -- update text display
+  ; --
+  Colour 25,14
+  Locate 0,0  : Print "1-4: ", map\stepping,"x",map\stepping, "  F1-F3: "
+  Select cmode
+  Case 0 : Print "WritePixelArray8"
+  Case 1 : Print "WriteChunkyPixels"
+  Case 2 : Print "c2p_040_320_200"
+  End Select
+  Locate  0,1 : Print"R,F: Height | Q,E: Nose"
+  Colour 27,14
+  Locate 0,2  : Print "Speed: ", _input\forwardbackward
+  Format "##0"
+  Locate 10,2 : Print "Height:", Str$(camera\height)
+  Locate 22,2 : Print "View:" + Str$(camera\angle * (180/Pi)) + Chr$(176)
+  Format "####.0"
+  Locate 0,3  : Print "x:" + Str$(camera\x) + "  y:" + Str$(camera\y)
+
+  Colour 25,0
+  Format ""
+  Locate 0,24 : Print lastkey
+  Format "##.0" : Locate 32,24 : Print "FPS:", fps.q
+  Format ""
+
+  ; ----------------------------------------- update camera
+  fps.q = 50 / (current - oldtime)
+  timediff = (current-oldtime) * 0.05 : oldtime = current
+
+  ; speed
+  If _input\forwardbackward <> 0
+    camera\x - _input\forwardbackward * Sin(camera\angle) * timediff
+    camera\y - _input\forwardbackward * Cos(camera\angle) * timediff
+  EndIf
+
+  ; looking angle
+  If _input\leftright <> 0
+    oangle = camera\angle
+    camera\angle + _input\leftright * 0.1 * timediff
+
+    If Abs(camera\angle) > 2 * Pi Then camera\angle = 0
+  EndIf
+
+  ; height
+  If _input\updown Then camera\height + _input\updown * timediff
+
+  ; horizon
+  If _input\tilt Then camera\horizon + _input\tilt * (2 * timediff)
+
+  ; -- collision detection, auto height up
+  mapoffset.l = (Int(camera\y) AND (map\width-1)) LSL map\shift + (Int(camera\x) AND (map\height-1))
+  If altitude(mapoffset) + 10.0 > camera\height
+    camera\height = altitude(mapoffset) + 10.0
+  EndIf
+
+  ; -- sync with map on screen
+  If camera\x < 0 Then camera\x = map\width
+  If camera\y < 0 Then camera\y = map\height
+  If camera\x > map\width Then camera\x = 0 ;- map\width
+  If camera\y > map\height Then camera\y = 0
+
+  ; ----------------------------------------- event handler
+  _input\leftright = -MouseXSpeed / (#display_width LSR 5)
+  _input\updown = -MouseYSpeed / (#display_height LSR 5)
+  ;camera\horizon = 100.0 + (MouseYSpeed / #display_height) * 96.0
+
+  If Joyb(0) = 1 Then _input\forwardbackward = 2.0
+  If Joyb(0) > 1 Then exit.b = True
+
+  If lastkey <> -1
+    ; check W,A,S,D and cursor keys
+    If lastkey = 115 OR lastkey = 29 Then _input\forwardbackward + -3.0
+    If lastkey = 119 OR lastkey = 28 Then _input\forwardbackward + 3.0
+    If lastkey = 100 OR lastkey = 30 Then _input\leftright = -1
+    If lastkey = 97  OR lastkey = 31 Then _input\leftright = 1
+
+    ; control height
+    If lastkey = 102 Then _input\updown = -2.0           ; f
+    If lastkey = 114 Then _input\updown = 2.0            ; r
+
+    ; nose up / down
+    If lastkey = 101 Then _input\tilt = 1
+    If lastkey = 113 Then _input\tilt = -1
+
+    ; control chunky mode 
+    If lastkey = 129 Then cmode = 0                      ; 1
+    If lastkey = 130 Then cmode = 1                      ; 2
+    If lastkey = 131 Then cmode = 2                      ; 3
+       
+    ; control details
+    If lastkey = 49 Then map\stepping = 1                ; F1
+    If lastkey = 50 Then map\stepping = 2                ; F2
+    If lastkey = 51 Then map\stepping = 4                ; F3
+    If lastkey = 52 Then map\stepping = 8                ; F3
+
+
+    If lastkey = 27 Then exit = True
+  EndIf
+
+Until exit = True
+BlitzKeys Off
+AMIGA
+FlushEvents
+
+NPrint "cleanup everything..."
+Free BitMap 0
+Free Palette 0
+NFreeChunkyBuffer 0
+;If chunkyShapeAddress.l AND chunkyShapeSize.l > 0 Then FreeMem chunkyShapeAddress, chunkyShapeSize
+NPrint "end"
+End
+
+;=======================================================================================
+.generate_tables
+  ; -- load the map / colormap
+  NPrint "loading map data..."
+  BitMap 2,150,150,8 : LoadBitMap 2,"/data/map/C1W_low.iff",0
+  BitMap 3,150,150,8 : LoadBitMap 3,"/data/map/D1_low.iff"
+
+  map\scalefactor = 0.25
+  map\scalefx = 150 / map\width * 1.0
+  map\scalefy = 150 / map\height * 1.0
+
+  NPrint "reading colormap and heightmap..."
+  RunErrsOff
+  w.w = 0 : h.w = 0 : ows.w = -1 : ohs.w = -1
+  For i.l = 0 To (map\width-1) * (map\height-1)
+    h = i LSR map\shift
+
+    ws.w = w * map\scalefx
+    hs.w = h * map\scalefy
+
+    ;-- get color values out of colormap and heightmap
+    ;only read data from bitmap if a new pixel is to be read
+    If (ws <> ows) OR (hs <> ohs)
+      Use BitMap 2 : c.w = Point(ws, hs)
+      Use BitMap 3 : a.w = Point(ws, hs) AND $FF
+    EndIf
+
+    color(i) = c : altitude(i) = a
+
+    w + 1 : If w = map\width Then w = 0
+    ows = ws : ohs = hs
+  Next i
+  RunErrsOn
+  ; --
+  ; -- free temp bitmaps
+  ; --
+  Free BitMap 2
+  Free BitMap 3
+
+  ; --
+  ; -- create the scaled map
+  ; --
+  NPrint "rendering scaled map..."
+
+  chunkyShapeWidth.w = map\width * map\scalefx * map\scalefactor
+  chunkyShapeHeight.w = map\height * map\scalefy * map\scalefactor
+  chunkyShapeSize.l = chunkyShapeWidth * chunkyShapeHeight
+  chunkyShapeAddress.l = AllocMem(chunkyShapeSize,0)
+  If chunkyShapeAddress
+    BitMap 0,chunkyShapeWidth,chunkyShapeHeight,8
+    For x.w = 1 To chunkyShapeWidth
+      For y.w = 1 To chunkyShapeHeight
+
+        tmpx.q = (x / map\scalefx) / map\scalefactor
+        tmpy.q = (y / map\scalefy) / map\scalefactor
+        offset.l = Int(tmpy) LSL map\shift + Int(tmpx)
+        
+        Poke.b chunkyShapeAddress + chunkyShapeWidth * y + x, color(offset)
+      Next y
+    Next x
+    Free BitMap 0
+  EndIf
+  map\posx = #display_width - (1.0 * 150 * map\scalefactor) - 3
+  map\posy = 3
+Return
+
+

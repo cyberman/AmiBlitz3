@@ -754,7 +754,8 @@ toktnum:
 !token{$00D7,"Object","<Name>    # define object #developobject=1 disable it"}
 !token{$00D8,"USEPATH2","<Pathtext>   # a second type path can acsess with \\"}
 !token{$00D9,"LastRunErrsMode","   # Set the runerror state that was before RunErrsOff"}
-!token{$00DA,"KEEP","",True} ; <-- add a 4th parameter to indicate macro the end of tokenlist
+!token{$00DA,"KEEP",""} ; <-- add a 4th parameter to indicate macro the end of tokenlist
+!token{$00DB,"OPTIMIZE","Mode = [1] Integer on, [2] FPU on, [4] New Syntax Mode, [8] Branches",True}
 ; ///////////////////////////////////////////////////////////////////////////////////////
 ; /   END OF TOKENLIST                                                                  /
 ; ///////////////////////////////////////////////////////////////////////////////////////

@@ -491,14 +491,15 @@ RTS
   SUB.w #16,A1
   CEND
 
-  MOVEA.l D1,A0
+  MOVEA.l D1,A0                 ; memlist
   ADDQ.w #4,A0
+
   MOVEA.l _SysBase,A6
   JSR _Forbid(a6)
 
   JL_0_1B0:
   MOVE.l 4(a1),a0
-  CMPA.l (A0),A1 : BNE.w errormem
+  CMPA.l (A0),A1 : BNE.w errorFree
 
   MOVEA.l D1,A0
   MOVE.l 12(A1),D0
@@ -546,12 +547,15 @@ RTS
     JSR _FreePooled(a6)
   poolend2:
 
-  JL_0_1C6b:
+  exit_localfreeb:
   JSR _Permit(a6)
   exit_localfree:
   ;ADDQ.l #4,a7
   MOVEM.l (A7)+,D1/A0/A6
 RTS
+
+errorFree: MOVE.l #errorFreeMem,D0 : TRAP #$0
+
 
 ;CNIF #poolmem=1
 CNIF #mungwall=1
@@ -605,17 +609,6 @@ munghit4:
 
 CEND
 ;CEND
-
-JL_0_1CC:
-  MOVE.l (A0),D1
-  MOVEA.l D1,A0 : BNE.w JL_0_1B0
-  MOVE.w AL_0_EE(PC),D1 : BNE.w exit_localfree
-  NOT.w AL_0_EE
-
-  errormem:
-  MOVE.l #errorFreeMem,D0
-  TRAP #$0
-BRA JL_0_1C6b
 
 
 .do_newmemnode:                    ;create a new node (for local stuff)    AJL_0_1EA
@@ -766,6 +759,6 @@ CEND
 ; =============================================================================================================================
 errorhandling:
 errorOutOfMem:  Dc.b "OuT of Memory!",0,0
-errorFreeMem:   Dc.b "Unable to Free Memory (Hint: program overide illegal mem)",0
+errorFreeMem:   Dc.b "Unable to Free Memory (Hint: program overrides illegal mem)",0
 mungtext:       Dc.b "Mungwall Hit",0,0
 mungtext2:      Dc.b "Mungwall Hit Upper Bound",0,0

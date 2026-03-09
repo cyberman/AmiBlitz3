@@ -6,7 +6,7 @@
 ; ExePath         = "Blitz3:BlitzLibs/UserLibs"
 ; ExeFile         = "fpulib.obj"
 ; CreateIcon      = 0
-; Residents       = "libmacs.res"
+; Residents       = "libmacs.res,libjsrs.res,all.res"
 ; 
 ; Compiler
 ; -------------------------------------------------------
@@ -14,7 +14,7 @@
 ; MakeSmallest    = 1
 ; FuncOptimize    = 1
 ; Version         = 0.0.0
-; NumberOfBuilds  = 6
+; NumberOfBuilds  = 8
 ; 
 ; Debugger
 ; -------------------------------------------------------
@@ -30,7 +30,7 @@
 ; 
 ; Editor
 ; -------------------------------------------------------
-; CursorLine      = 897
+; CursorLine      = 1013
 ; CursorColumn    = 1
 ; LabelSearch     = "_optimize"
 ; LabelRemark     = 0
@@ -110,7 +110,7 @@
 #macroexecute= -72
 #writeinit   = -78      ; write init at destpointer and not on start
 #callToken   = -84      ; call a blitzlib-function with the mentioned tokenId
-#evalconst   = -90      ; evaluate parameter
+#evalconst2  = -90      ; evaluate parameter
 
 
 !libheader{#fplib,0,0,0,0}
@@ -973,11 +973,11 @@
 !subs {$12345678,0,_sub}
 !name {"sub",""};$10
 
-!astatement
-!args
-!libs
-!subs {$12345678,0,_optimize}
-!name {"OPTIMIZE","Mode = [1] Integer on, [2] FPU on, [4] New Syntax Mode, [8] Branches"};$11
+;!astatement
+;!args
+;!libs
+;!subs {$12345678,0,_optimize}
+;!name {"OPTIMIZE",""};$11
 
 !astatement
 !args
@@ -1050,85 +1050,87 @@
   JSR writeinit(a3)
 JMP exit(a3)
 
-.getvalue:  
-  MOVEQ #0,d2
-  MOVEQ #0,d0                   ; get parameter value as number
-  
-  MOVE.b (a5)+,d0               ; check first char
-  SUB.b #$30,d0 : BMI errvalue  ; no number found
-  CMP.b #$9,d0 : BGT errvalue   ; no number found
-
-  MOVE.b (a5)+,d2               ; check second char
-  SUB.b #$30,d2 : BMI 'one
-  CMP.b #$9,d2 : BGT 'one
-    MULS #10,d0
-    ADD.w d2,d0
-    RTS
- 'one
-  SUBQ.l #1,a5
-RTS
-
-._optimize
-  JSR stripspaces(a3)
-
-  
-  BSR getvalue                ; gets the parameter value
-
-  MOVE.w d0,d1                ; store original value
-  AND.w #1,d0
-  MOVE.b d0,4(a3)             ; move bit 1 (integer) to variable in compiler (pluginbase)
-  
-  MOVE.w d1,d0
-  AND.w #2,d0
-  MOVE.b d0,6(a3)             ; move bit 2 (fpu) to variable in compiler (pluginbase)
-
-  ;-- check if FPU is available and error if not but fpu is on
-  MOVEM.l d0-d5/a0-a6,-(a7)
-  CMP.b #2,d0 : BNE 'no_fpu_optimize
-    BSR.w _checkfpu
-    TST.b d0 : BNE 'fpufound
-      MOVEM.l (a7)+,d0-d5/a0-a6
-      MOVE.l #errtext4,d0 : JMP error(a3)
-   'fpufound
- 'no_fpu_optimize
-  MOVEM.l (a7)+,d0-d5/a0-a6
-
-  ;-- call setfpumode in string2lib / fpu optimization flag for other libs
-  MOVEM.l d0-d5/a0-a6,-(a7)
-  MOVEQ #0,d3                 ; AB pre 2.27 hack
-  MOVEQ #0,d5
-  MOVE.w #$203c,d1 : JSR writeword(a3)
-  MOVE.l d0,d1 : JSR writelong(a3)
-  MOVE.l ##setfpumode,d1 : JSR callToken(a3)
-  MOVEM.l (a7)+,d0-d5/a0-a6
-
-  MOVE.w d1,d0
-  AND.w #4,d0
-  MOVE.b d0,8(a3)             ; move bit 3 (newsyntax) to variable in compiler (pluginbase)
-
-  MOVE.w d1,d0
-  AND.w #8,d0
-  MOVE.b d0,10(a3)            ; move bit 4 (jumps) to variable in compiler (pluginbase)
-
-JMP exit(a3)
-
-_checkfpu:
-  ;-- cpu / fpu checks
-  MOVEQ #0,d0
-  MOVE.l 4,a0
-  MOVE.w 296(a0),d0                                     ; AttnFlags of execbase
-  LSR.w #4,d0                                           ; skip cpu data, move fpubits to the right
-  AND.w #15,d0
-
-  MOVEQ #0,d1
- `loop_highest_bit
-  TST.b d0 : BEQ `done_highest_bit
-    ADDQ #1,d1
-    LSR #1,d0
-    BRA `loop_highest_bit
- `done_highest_bit
-  MOVE.l d1, d0
-RTS
+;.getvalue:  
+;  MOVEQ #0,d2
+;  MOVEQ #0,d0                   ; get parameter value as number
+;  
+;  MOVE.b (a5)+,d0               ; check first char
+;  SUB.b #$30,d0 : BMI errvalue  ; no number found
+;  CMP.b #$9,d0 : BGT errvalue   ; no number found
+;
+;  MOVE.b (a5)+,d2               ; check second char
+;  SUB.b #$30,d2 : BMI 'one
+;  CMP.b #$9,d2 : BGT 'one
+;    MULS #10,d0
+;    ADD.w d2,d0
+;    RTS
+; 'one
+;  SUBQ.l #1,a5
+;RTS
+;
+;._optimize
+;  JSR stripspaces(a3)
+;
+;  ;BSR getvalue                ; gets the parameter value
+;  JSR evalconst2(a3)
+;  CMP.l #$FFFF,D3 : BHI.w errvalue  
+;  MOVE.w D3,D0
+;
+;  MOVE.w d0,d1                ; store original value
+;  AND.w #1,d0
+;  MOVE.b d0,4(a3)             ; move bit 1 (integer) to variable in compiler (pluginbase)
+;  
+;  MOVE.w d1,d0
+;  AND.w #2,d0
+;  MOVE.b d0,6(a3)             ; move bit 2 (fpu) to variable in compiler (pluginbase)
+;
+;  ;-- check if FPU is available and error if not but fpu is on
+;  MOVEM.l d0-d5/a0-a6,-(a7)
+;  CMP.b #2,d0 : BNE 'no_fpu_optimize
+;    BSR.w _checkfpu
+;    TST.b d0 : BNE 'fpufound
+;      MOVEM.l (a7)+,d0-d5/a0-a6
+;      MOVE.l #errtextfpu,d0 : JMP error(a3)
+;   'fpufound
+; 'no_fpu_optimize
+;  MOVEM.l (a7)+,d0-d5/a0-a6
+;
+;  ;-- call setfpumode in string2lib / fpu optimization flag for other libs
+;  MOVEM.l d0-d5/a0-a6,-(a7)
+;  MOVEQ #0,d3                 ; AB pre 2.27 hack
+;  MOVEQ #0,d5
+;  MOVE.w #$203c,d1 : JSR writeword(a3)
+;  MOVE.l d0,d1 : JSR writelong(a3)
+;  MOVE.l ##setfpumode,d1 : JSR callToken(a3)
+;  MOVEM.l (a7)+,d0-d5/a0-a6
+;
+;  MOVE.w d1,d0
+;  AND.w #4,d0
+;  MOVE.b d0,8(a3)             ; move bit 3 (newsyntax) to variable in compiler (pluginbase)
+;
+;  MOVE.w d1,d0
+;  AND.w #8,d0
+;  MOVE.b d0,10(a3)            ; move bit 4 (jumps) to variable in compiler (pluginbase)
+;
+;JMP exit(a3)
+;
+;_checkfpu:
+;  ;-- cpu / fpu checks
+;  MOVEQ #0,d0
+;  MOVE.l 4,a0
+;  MOVE.w 296(a0),d0                                     ; AttnFlags of execbase
+;  LSR.w #4,d0                                           ; skip cpu data, move fpubits to the right
+;  AND.w #15,d0
+;
+;  MOVEQ #0,d1
+; `loop_highest_bit
+;  TST.b d0 : BEQ `done_highest_bit
+;    ADDQ #1,d1
+;    LSR #1,d0
+;    BRA `loop_highest_bit
+; `done_highest_bit
+;  MOVE.l d1, d0
+;RTS
 
 ; ========================================================================================
 ._stop
@@ -3315,15 +3317,15 @@ errreg:      MOVE.l #errtext1,d0 : JMP error(a3)
 errrc:       MOVE.l #errtext2,d0 : JMP error(a3)
 overflow:    MOVEQ  #1,d0        : JMP error(a3)
 syntax2:     MOVE.l #errtext3,d0 : JMP error(a3)
-errconstant: MOVE.l #errtext2,d0 : JMP error(a3)
-errvalue:    MOVE.l #errtext5,d0 : JMP error(a3)
+errconstant: MOVE.l #errtext4,d0 : JMP error(a3)
+;errvalue:    MOVE.l #errtext5,d0 : JMP error(a3)
 
 errtext1: Dc.b "Register Num out of range",0
-errtext4: Dc.b "FPU-Optimization not possible: no FPU present",0
-errtext3: Dc.b "Syntax Error only reg/imm/off(ax) allowed",0
-errtext2: Dc.b "Constant not found or declared too late",0
 errtext2: Dc.b "Wrong Rc Code Only cmd. allowed here",0
-errtext5: Dc.b "Illegal optimize value",0
+errtext3: Dc.b "Syntax Error only reg/imm/off(ax) allowed",0
+errtext4: Dc.b "Constant not found or declared too late",0
+;errtext5: Dc.b "Illegal optimize value",0
+;errtextfpu: Dc.b "FPU-Optimization not possible: no FPU present",0
 Even
 
 .areg

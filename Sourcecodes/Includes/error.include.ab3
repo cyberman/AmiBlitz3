@@ -30,38 +30,53 @@
 ; 
 ; Editor
 ; -------------------------------------------------------
-; CursorLine      = 1
-; CursorColumn    = 1
+; CursorLine      = 59
+; CursorColumn    = 4
 ; LabelSearch     = "deftype"
 ; LabelRemark     = 0
 ; LabelAll        = 1
+; LabelCase       = 0
 ; LabelPosition   = 0
 ; 
 ; Blitz Objects
 ; -------------------------------------------------------
 ; Max File        = 5
 ; Max GadgetList  = 5
-; Max Screen      = 5
-; Max Stencil     = 5
-; Max Window      = 5
+; Max Shape       = 100
 ; Max Bank        = 5
-; Max Tape        = 5
-; Max IntuiFont   = 5
 ; Max MenuList    = 5
-; Max BlitzFont   = 4
 ; Max GTList      = 5
 ; Max BitMap      = 10
+; Max Screen      = 5
+; Max IntuiFont   = 5
+; Max Window      = 5
+; Max Palette     = 4
+; Max BlitzFont   = 4
 ; Max IconInfo    = 1
-; Max NChunky     = 50
 ; Max MUIObject   = 50
-; Max PTModule    = 5
 ; Max AsyncReq    = 4
 ; Max Req-Lib     = 5
 ; Max GTMenuList  = 5
 ; Max Console     = 5
 ; Max TCPSock     = 5
-; Max XBSound     = 10
+; Max Tape        = 5
+; Max TagList     = 5
+; Max Database    = 16
+; Max Sound       = 10
+; Max MedModule   = 8
+; Max Buffer      = 10
+; Max Queue       = 10
+; Max Sprite      = 20
+; Max Module      = 5
+; Max Slice       = 10
+; Max Page        = 4
+; Max CopList     = 10
+; Max PTModule    = 5
+; Max Anim        = 10
+; Max NChunky     = 50
 ; Max Chunky      = 20
+; Max Stencil     = 5
+; Max XBSound     = 10
 ; /XTRA
 ;///////////////////////////////////////////////////////////////////////////////
 ;/                                                                             /
@@ -121,6 +136,7 @@ NEWTYPE.errorengine
   quest_code.l
   flags.l
   req.EasyStruct
+  *defaultWin.Window ; window to attach Requester to
 End NEWTYPE
 
 If ver.s=""
@@ -142,6 +158,25 @@ WbToScreen 0
 #error_stdout    = 16
 
 USEPATH errorengine
+
+;///////////////////////////////////////////////////////////////////////////////
+;/                                                                             /
+;/ Syntax: error_SetWindow {*win.Window}                                       /
+;/                                                                             /
+;/ Description:                                                                /
+;/ Set the default window the erroe requester will be connected to             /
+;/                                                                             /
+;/                                                                             /
+;/ Inputs:                                                                     /
+;/ - *win.Window: pointer to the window struct                                 /
+;/                                                                             /
+;///////////////////////////////////////////////////////////////////////////////
+Statement error_SetWindow{*win.Window}
+  SHARED errorengine
+  \defaultWin = *win
+End Statement
+
+
 ;///////////////////////////////////////////////////////////////////////////////
 ;/                                                                             /
 ;/ Syntax: error_SetFlags {flags.l}                                            /
@@ -192,8 +227,11 @@ Statement error {text.s,@errorcode.l,@onlyonce.l,@titletext.s}
 
   If (\flags&#error_requester)
     If onlyonce=False OR \err_code><errorcode OR errorcode=-1
-      If Used Window<0 Then *win.Window=0:Else *win.Window=Peek.l(Addr Window(Used Window))
-
+      If Used Window<0 
+        *win.Window = errorengine\defaultWin
+      Else 
+        *win.Window=Peek.l(Addr Window(Used Window))
+      EndIf
       \req\es_StructSize   = SizeOf.EasyStruct
       \req\es_Flags        = 0;-1
       \req\es_Title        = &error_title.s

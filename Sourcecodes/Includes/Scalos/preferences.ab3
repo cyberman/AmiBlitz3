@@ -1,0 +1,142 @@
+; XTRA
+; Embedded .xtra Header
+; 
+; General Info
+; -------------------------------------------------------
+; ExePath         = ""
+; ExeFile         = ""
+; CreateIcon      = 1
+; Residents       = ""
+; 
+; Compiler
+; -------------------------------------------------------
+; StringBuffer    = 10240
+; MakeSmallest    = 0
+; FuncOptimize    = 0
+; Version         = 0.0.0
+; NumberOfBuilds  = 0
+; 
+; Debugger
+; -------------------------------------------------------
+; CliArgs         = ""
+; StackSize       = 8191
+; RuntimeDebug    = 1
+; DebugInfo       = 0
+; CreateDbgFile   = 0
+; OverflowCheck   = 1
+; AssemblerCheck  = 0
+; InterruptCheck  = 1
+; AutoRun         = 1
+; 
+; Editor
+; -------------------------------------------------------
+; CursorLine      = 1
+; CursorColumn    = 1
+; LabelSearch     = ""
+; LabelRemark     = 0
+; LabelAll        = 0
+; LabelCase       = 0
+; LabelPosition   = 0
+; 
+; Blitz Objects
+; -------------------------------------------------------
+; Max File        = 5
+; Max GadgetList  = 5
+; Max Shape       = 100
+; Max Bank        = 5
+; Max MenuList    = 5
+; Max GTList      = 20
+; Max BitMap      = 10
+; Max Screen      = 5
+; Max IntuiFont   = 5
+; Max Window      = 20
+; Max Palette     = 32
+; Max BlitzFont   = 4
+; Max IconInfo    = 1
+; Max MUIObject   = 50
+; Max AsyncReq    = 4
+; Max Req-Lib     = 5
+; Max GTMenuList  = 5
+; Max Console     = 5
+; Max TCPSock     = 5
+; Max Tape        = 5
+; Max TagList     = 5
+; Max Database    = 16
+; Max Sound       = 10
+; Max MedModule   = 8
+; Max Buffer      = 10
+; Max Queue       = 10
+; Max Sprite      = 20
+; Max Module      = 5
+; Max Slice       = 10
+; Max Page        = 4
+; Max CopList     = 10
+; Max PTModule    = 5
+; Max Anim        = 10
+; Max NChunky     = 50
+; Max Chunky      = 20
+; Max Stencil     = 5
+; Max XBSound     = 10
+; /XTRA
+;/*
+;**  $VER: preferences.h 39.6 (26.07.2000)
+;**
+;**      preferences.library INCLUDE
+;**
+;**  (C) Copyright 2000 Satanic Dreams Software
+;**  All Rights Reserved
+;*/
+
+NEWTYPE.PrefsStruct
+    ps_Size.w
+    ; followed by the Data, a total of ps_Size bytes
+End NEWTYPE
+
+; -- Scalos specific Prefs:
+
+; ------------------ ScalosPrefs -------------------------
+
+; Name: "Scalos" OR "ScalosPrefs"
+; ID: "MAIN"
+
+#SCP_IconOffsets            =$80000001  ; struct [8]
+#SCP_IconNormFrame          =$80000002  ; word
+#SCP_IconSelFrame           =$80000003  ; word
+#SCP_IconTextMode           =$80000004  ; word
+#SCP_IconSecLine            =$80000005  ; word
+#SCP_IconTextSkip           =$80000006  ; word
+
+#SCP_BobsType               =$80000010  ; byte image OR image+text
+#SCP_BobsMethod             =$80000011  ; byte system OR custom
+#SCP_BobsTranspMode         =$80000012  ; byte solid OR transparent
+#SCP_BobsTranspType         =$80000013  ; byte ghosted OR real transparent
+#SCP_BobsTransp             =$80000014  ; long when transparent
+
+#SCP_ScreenTitle            =$80000020  ; string
+#SCP_RootWinTitle           =$80000021  ; string
+#SCP_WindowTitle            =$80000022  ; string
+#SCP_Separator              =$80000023  ; byte
+#SCP_TitleRefresh           =$80000024  ; byte
+
+#SCP_PathsDefIcons          =$80000025  ; string
+#SCP_PathsDiskCopy          =$80000026  ; string
+#SCP_PathsWBStartup         =$80000027  ; string
+#SCP_PathsHome              =$80000028  ; string
+
+#SCP_MiscAutoRemove         =$80000029  ; byte
+#SCP_MiscClickTransp        =$8000002a  ; byte
+#SCP_MiscHardEmulation      =$8000002b  ; byte
+#SCP_MiscUseExAll           =$8000002c  ; byte
+#SCP_MiscWindowType         =$8000002d  ; byte
+#SCP_MiscDoWaitDelay        =$8000002e  ; byte
+#SCP_MiscDiskiconsRefresh   =$8000002f  ; byte delay
+#SCP_MiscMenuCurrentDir     =$80000030  ; byte
+
+#SCP_NewIconsTransparent    =$80000031  ; byte
+#SCP_NewIconsPrecision      =$80000032  ; long
+
+#SCP_TextModeFont           =$80000033  ; string
+#SCP_TextModeDateFormat     =$80000034  ; byte
+
+#SCP_PlugInList             =$80000035  ; List
+

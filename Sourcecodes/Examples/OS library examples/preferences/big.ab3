@@ -1,0 +1,230 @@
+; XTRA
+; Embedded .xtra Header
+; 
+; General Info
+; -------------------------------------------------------
+; ExePath         = ""
+; ExeFile         = ""
+; CreateIcon      = 0
+; Residents       = "all.res"
+; 
+; Compiler
+; -------------------------------------------------------
+; StringBuffer    = 10240
+; MakeSmallest    = 0
+; FuncOptimize    = 0
+; Version         = 0.0.0
+; NumberOfBuilds  = 1
+; 
+; Debugger
+; -------------------------------------------------------
+; CliArgs         = ""
+; StackSize       = 8191
+; RuntimeDebug    = 1
+; DebugInfo       = 0
+; CreateDbgFile   = 0
+; OverflowCheck   = 1
+; AssemblerCheck  = 0
+; InterruptCheck  = 1
+; AutoRun         = 1
+; 
+; Editor
+; -------------------------------------------------------
+; CursorLine      = 42
+; CursorColumn    = 54
+; LabelSearch     = ""
+; LabelRemark     = 0
+; LabelAll        = 0
+; LabelCase       = 0
+; LabelPosition   = 0
+; 
+; Blitz Objects
+; -------------------------------------------------------
+; Max File        = 5
+; Max GadgetList  = 5
+; Max Shape       = 100
+; Max Bank        = 5
+; Max MenuList    = 5
+; Max GTList      = 20
+; Max BitMap      = 10
+; Max Screen      = 5
+; Max IntuiFont   = 5
+; Max Window      = 20
+; Max Palette     = 32
+; Max BlitzFont   = 4
+; Max IconInfo    = 1
+; Max MUIObject   = 50
+; Max AsyncReq    = 4
+; Max Req-Lib     = 5
+; Max GTMenuList  = 5
+; Max Console     = 5
+; Max TCPSock     = 5
+; Max Tape        = 5
+; Max TagList     = 5
+; Max Database    = 16
+; Max Sound       = 10
+; Max MedModule   = 8
+; Max Buffer      = 10
+; Max Queue       = 10
+; Max Sprite      = 20
+; Max Module      = 5
+; Max Slice       = 10
+; Max Page        = 4
+; Max CopList     = 10
+; Max PTModule    = 5
+; Max Anim        = 10
+; Max NChunky     = 50
+; Max Chunky      = 20
+; Max Stencil     = 5
+; Max XBSound     = 10
+; /XTRA
+; Big example, perhaps something like what you'd use in a program :)
+
+; !! The library MUST be available in LIBS: !!
+
+XINCLUDE "scalos/preferences.ab3"
+
+
+; Strings for preferences
+preffile$ = "example.prefs"     ; filename
+prefname$ = "Example"           ; prefshandle name (does not need to be same as filename)
+
+
+; Default values for window position and sizes
+ww.w = 300
+wh.w = 200
+wx.w = 170
+wy.w = 100
+
+
+; Create some stuff for showing in the listview
+NEWTYPE.gtlv_text
+    ln_Type.b
+    ln_Pri.b
+    ln_Name$
+End NEWTYPE
+Dim List text.gtlv_text(1000)
+
+
+; Some random task temporary memory
+Dim temp.b(256)
+
+; Allocate prefshandle. if successful, try to load the preferences and parse them
+*prefhandle.l = AllocPrefsHandle_(&prefname$)
+If *prefhandle
+    ReadPrefsHandle_ *prefhandle, &preffile$
+
+    ; Read window data from file. if the tags do not exist, then nothing
+    ; will be written to the destination buffer, so our default positions
+    ; are safe. We use already existing tags for window positions (from
+    ; Intuition) as our tags values - hey saves us doing some thinking :)
+    ID.l = Cvl("WNDO")
+    GetPreferences_ *prefhandle, ID, #WA_Left, &wx, 2
+    GetPreferences_ *prefhandle, ID, #WA_Top, &wy, 2
+    GetPreferences_ *prefhandle, ID, #WA_Width, &ww, 2
+    GetPreferences_ *prefhandle, ID, #WA_Height, &wh, 2
+
+    ; Read listview data from file
+    ID.l = Cvl("TEXT")
+    en.l = 0
+    While GetEntry_(*prefhandle, ID, 1, &temp(0), 256, en)
+        If AddLast(text())
+            text()\ln_Name = Peek$(&temp(0))
+        End If
+        en+1
+    Wend
+End If
+
+
+WbToScreen 0
+GTListView 0,1,4,4,ww-40,wh-60,"",0,text(),0,0
+GTString   0,2,4,4+wh-60,ww-80,14,"",0,256
+GTButton   0,3,4+ww-80,4+wh-60,40,14,"Del",$10
+Window 0,wx,wy,ww,wh,$100f,"Example",-1,-1
+DefaultOutput
+AttachGTList 0,0
+
+
+While ev.l<>#IDCMP_CLOSEWINDOW
+    ev = WaitEvent
+
+    Select ev
+        Case #IDCMP_NEWSIZE
+            If ww <> WindowWidth OR wh <> WindowHeight
+                ww = WindowWidth
+                wh = WindowHeight
+                DetachGTList 0
+                Free GTList 0
+                GTListView 0,1,4,4,ww-40,wh-60,"",0,text(),0,0
+                GTString   0,2,4,4+wh-60,ww-80,14,"",0,256
+                GTButton   0,3,4+ww-80,4+wh-60,40,14,"Del",$10
+                InnerCls
+                RefreshWindowFrame_ Peek.l(Addr Window(0))
+                AttachGTList 0,0
+            End If
+
+        Case #IDCMP_GADGETUP
+            Select GadgetHit
+                Case 1
+                    lasthit.w = EventCode
+                    ResetList text()
+                    For i.w=0 To lasthit
+                        NextItem text()
+                    Next
+                    GTSetString 0,2,text()\ln_Name
+
+                Case 2
+                    GTChangeList 0,1
+                    If AddLast(text()) Then text()\ln_Name = GTGetString(0,2)
+                    GTChangeList 0,1,text()
+
+                Case 3
+                    GTChangeList 0,1
+                    ResetList text()
+                    For i.w=0 To lasthit
+                        NextItem text()
+                    Next
+                    KillItem text()
+                    GTChangeList 0,1,text()
+            End Select
+    End Select
+Wend
+
+DetachGTList 0
+
+If *prefhandle = 0 Then *prefhandle = AllocPrefsHandle_(&prefname$)
+If *prefhandle
+    ; set all the window preferences
+    wx = WindowX
+    wy = WindowY
+
+    ID.l = Cvl("WNDO")
+    SetPreferences_ *prefhandle, ID, #WA_Left, &wx, 2
+    SetPreferences_ *prefhandle, ID, #WA_Top, &wy, 2
+    SetPreferences_ *prefhandle, ID, #WA_Width, &ww, 2
+    SetPreferences_ *prefhandle, ID, #WA_Height, &wh, 2
+
+    ; Read listview data from file
+    ID.l = Cvl("TEXT")
+
+    ; clear all items from pref list (probably a better way of doing this :)
+    While RemEntry_(*prefhandle, ID, 1, 0)
+    Wend
+
+    ; set all the data items from the listview
+    ResetList text()
+    en = 0
+    While NextItem(text())
+        SetEntry_ *prefhandle, ID, 1, &text()\ln_Name, Len(text()\ln_Name)+1, en
+        en+1
+    Wend
+
+    ; write the prefs file
+    WritePrefsHandle_ *prefhandle, &preffile$
+    FreePrefsHandle_ *prefhandle
+End If
+
+CloseWindow 0
+CloseScreen 0
+End
+

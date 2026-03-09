@@ -304,57 +304,66 @@ Even
 ;Exists now returns -1 if it find a DIR.
 ;Change made by S. Matty
 .doexists
- MOVE.l d0,d1:MOVEQ#-2,d2:JSR _Lock(a6):MOVE.l d0,mykey:BLE exfail
- MOVE.l#260,d0:MOVEQ#0,d1:ALibJsr #globalalloc:MOVE.l d0,myfib
- MOVE.l mykey(pc),d1:MOVE.l d0,d2:JSR _Examine(a6)
- MOVE.l mykey(pc),d1:JSR _UnLock(a6)
- MOVE.l myfib(pc),a1:MOVE.l 124(a1),d4 ;length
- CMP.l  #2,120(a1)
- BNE    'nope
- MOVEQ  #-1,d4
- 'nope:
- MOVE.l myfib(pc),a1:MOVE.l #260,d0:ALibJsr #globalfree
- MOVE.l d4,d0:RTS
-exfail:MOVEQ.l#0,d0:RTS
+  MOVE.l d0,d1
+  MOVEQ#-2,d2
+  JSR _Lock(a6)
+  
+  MOVE.l d0,mykey : BLE exfail
+    MOVE.l#260,d0 : MOVEQ#0,d1 : ALibJsr #globalalloc
+    MOVE.l d0,myfib
+    MOVE.l mykey(pc),d1 : MOVE.l d0,d2 : JSR _Examine(a6)
+    MOVE.l mykey(pc),d1 : JSR _UnLock(a6)
+    MOVE.l myfib(pc),a1 : MOVE.l 124(a1),d4 ;length
+    CMP.l  #2,120(a1) : BNE 'nope
+      MOVEQ  #-1,d4
+   'nope:
+    MOVE.l myfib(pc),a1
+    MOVE.l #260,d0 : ALibJsr #globalfree
+    MOVE.l d4,d0
+    RTS
+  exfail:
+
+  MOVEQ.l#0,d0
+RTS
 
 
-dodbufflen:MOVE.l d0,doslen:RTS
+dodbufflen: MOVE.l d0,doslen : RTS
 
 .dowritevar ;a2=file, d1=buffer, d2=len
-CMP.w #$ab12,4(a7)
-BNE errwv
-LEA 6(a7),a3
-MOVEM.l d4-d7/a3,-(a7)
-MOVEQ #0,d0
-MOVE.w (a3)+,d0:MOVE.l d0,size:MOVE.l d1,_buffer:MOVE.l a2,_handle:
-CMP.l #4,size
-BLE 'nostring
-MOVE.l #tstore,a0
-MOVE.l size,(a0)
-MOVEQ #4,d3
-MOVE.l a0,d2
-MOVE.l a2,d1
-BSR mywrite                ;write size
-MOVEQ #0,d4
-MOVE.w (a3)+,d4 ;num of strings
-BEQ 'nostring
-ADD.l d4,a3
-MOVEQ #0,d7
-MOVEQ #0,d5
-MOVE.w -(a3),d5
-MOVE.l size,d6
-'loop CMP.l d5,d7
-BEQ 'dostring
-MOVE.l a2,d1
-MOVE.l _buffer,d2
-ADD.l d7,d2
-MOVEQ #1,d3
-BSR mywrite2
-ADDQ.l #1,d7
-CMP.l d7,d6
-BNE 'loop
-'exit MOVEM.l (a7)+,d4-d7/a3
+  CMP.w #$ab12,4(a7) : BNE errwv
+
+  LEA 6(a7),a3
+  MOVEM.l d4-d7/a3,-(a7)
+  MOVEQ #0,d0
+  MOVE.w (a3)+,d0:MOVE.l d0,size:MOVE.l d1,_buffer:MOVE.l a2,_handle:
+  CMP.l #4,size : BLE 'nostring
+  MOVE.l #tstore,a0
+  MOVE.l size,(a0)
+  MOVEQ #4,d3
+  MOVE.l a0,d2
+  MOVE.l a2,d1
+  BSR mywrite                ;write size
+  MOVEQ #0,d4
+  MOVE.w (a3)+,d4 ;num of strings
+  BEQ 'nostring
+  ADD.l d4,a3
+  MOVEQ #0,d7
+  MOVEQ #0,d5
+  MOVE.w -(a3),d5
+  MOVE.l size,d6
+  'loop CMP.l d5,d7
+  BEQ 'dostring
+  MOVE.l a2,d1
+  MOVE.l _buffer,d2
+  ADD.l d7,d2
+  MOVEQ #1,d3
+  BSR mywrite2
+  ADDQ.l #1,d7
+  CMP.l d7,d6
+  BNE 'loop
+ 'exit MOVEM.l (a7)+,d4-d7/a3
 RTS
+
 'nostring:MOVEM.l (a7)+,d4-d7/a3
 MOVE.l a2,d1
 MOVE.l _buffer,d2
@@ -381,51 +390,53 @@ SUBQ #2,d4
 BEQ 'loop
 MOVE.w -(a3),d5
 BRA 'loop
+
 .docleartype
-CMP.w #$ab12,4(a7)
-BNE errwv
-LEA 6(a7),a3
-MOVEM.l d4-d7/a3,-(a7)
-MOVE.l d0,srcbuff
-MOVEQ #0,d0
-MOVE.w (a3)+,d0:MOVE.l d0,size
-MOVE.l d1,_buffer
-MOVEQ #0,d4
-MOVE.w (a3)+,d4
-ADD.l d4,a3
-MOVEQ #0,d7
-MOVEQ #0,d5
-MOVE.w -(a3),d5
-MOVE.l size,d6
-'loop CMP.l d5,d7
-BEQ 'dostring
-MOVE.l srcbuff,a0
-ADD.l d7,a0
-CLR.b (a0)
-ADDQ.l #1,d7
-CMP.l d7,d6
-BNE 'loop
-'exit2 MOVEM.l (a7)+,d4-d7/a3
+  CMP.w #$ab12,4(a7) : BNE errwv
+
+  LEA 6(a7),a3
+  MOVEM.l d4-d7/a3,-(a7)
+  MOVE.l d0,srcbuff
+  MOVEQ #0,d0
+  MOVE.w (a3)+,d0 : MOVE.l d0,size
+  MOVE.l d1,_buffer
+  MOVEQ #0,d4
+  MOVE.w (a3)+,d4
+  ADD.l d4,a3
+  MOVEQ #0,d7
+  MOVEQ #0,d5
+  MOVE.w -(a3),d5
+  MOVE.l size,d6
+ 'loop 
+    CMP.l d5,d7 : BEQ 'dostring
+  
+    MOVE.l srcbuff,a0
+    ADD.l d7,a0
+    CLR.b (a0)
+    ADDQ.l #1,d7
+  CMP.l d7,d6 :BNE 'loop
+ 'exit2 
+  MOVEM.l (a7)+,d4-d7/a3
 RTS
+
 'dostring
- MOVE.l srcbuff,d0
- ADD.l d7,d0
- MOVE.l d0,a0
- TST.l (a0)
- BEQ 'nostring
-'stringok MOVE.l (a0),a0
- CLR.b (a0)
-'nostring
- ADDQ.l #4,d7
- CMP.l d7,d6
- BLE  'exit2
- MOVE.w -(a3),d5
- BRA 'loop
+  MOVE.l srcbuff,d0
+  ADD.l d7,d0
+  MOVE.l d0,a0
+  TST.l (a0) : BEQ 'nostring
+   'stringok 
+    MOVE.l (a0),a0
+    CLR.b (a0)
+ 'nostring
+  ADDQ.l #4,d7
+  CMP.l d7,d6 : BLE  'exit2
+  MOVE.w -(a3),d5
+BRA 'loop
  
 
 .docopytype
-CMP.w #$ab12,4(a7)
-BNE errwv
+CMP.w #$ab12,4(a7) : BNE errwv
+
 LEA 6(a7),a3
 MOVEM.l d4-d7/a3,-(a7)
 MOVE.l d0,srcbuff
@@ -476,9 +487,10 @@ RTS
  BLE  'exit2
  MOVE.w -(a3),d5
  BRA 'loop
+
 .doreadvar ;a2=file, d1=buffer, d2=len
-CMP.w #$ab12,4(a7)
-BNE errwv
+CMP.w #$ab12,4(a7) : BNE errwv
+
 LEA 6(a7),a3
 MOVEM.l d4-d7/a3,-(a7)
 MOVEQ #0,d0

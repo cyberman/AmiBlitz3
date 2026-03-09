@@ -77,39 +77,81 @@ NEWTYPE .bank
 End NEWTYPE
 
 ._initbank:
-  MOVEM.l d1-d2,-(a7):BSR _freebank:MOVEM.l (a7)+,d0-d1
-  TST.l d0:BEQ size0:MOVEM.l d0-d1,4(a3):ALibJsr #globalalloc:MOVE.l d0,(a3)
-  size0:RTS
+  MOVEM.l d1-d2,-(a7)
+  BSR _freebank
+  MOVEM.l (a7)+,d0-d1
+  
+  TST.l d0 : BEQ size0
+    MOVEM.l d0-d1,4(a3)
+    ALibJsr #globalalloc
+    MOVE.l d0,(a3)
+  size0:
+RTS
 
 ._freebank:
-  MOVEM.l (a3),d0-d1:TST.l d0:BEQ nobnk:MOVE.l d0,a1:MOVE.l d1,d0
-  BEQ nobnk:ALibJsr #globalfree:MOVEQ#0,d0:MOVE.l d0,(a3):MOVE.l d0,4(a3)
-  nobnk:RTS
+  MOVEM.l (a3),d0-d1
+  TST.l d0 : BEQ nobnk
+    MOVE.l d0,a1
+    MOVE.l d1,d0 : BEQ nobnk
+      ALibJsr #globalfree
+      MOVEQ#0,d0
+      MOVE.l d0,(a3)
+      MOVE.l d0,4(a3)
+  nobnk:
+RTS
 
 ._bankload:
-  MOVEQ#0,d2:TST.l (a3):BEQ _bankloadb:MOVE.l 8(a3),d2
+  MOVEQ#0,d2
+  TST.l (a3) : BEQ _bankloadb
+  MOVE.l 8(a3),d2
 
 ._bankloadb:
-  MOVE.l d1,d0:MOVE.l d0,fname
-  MOVE.l d2,-(a7):ALibJsr Exists:MOVE.l (a7)+,d2
-  TST.l d0:BEQ noload:CMP.l 8(a3),d2:BNE yoloc:CMP.l 4(a3),d0:BMI noloc
-  yoloc:MOVE.l d0,d1:BSR _initbank:noloc
-  MOVE.l fname(pc),d1:MOVE.l #1005,d2:JSR -30(a6):MOVE.l d0,hand
-  BEQ noload:MOVE.l hand(pc),d1:MOVEM.l (a3),d2-d3:JSR -42(a6)
-  MOVE.l hand(pc),d1:JSR -36(a6):noload:RTS
+  MOVE.l d1,d0
+  MOVE.l d0,fname
+  MOVE.l d2,-(a7)
+  ALibJsr Exists
+  MOVE.l (a7)+,d2
+  TST.l d0 : BEQ noload
+  CMP.l 8(a3),d2 : BNE yoloc
+    CMP.l 4(a3),d0 : BMI noloc
+  yoloc:
+    MOVE.l d0,d1
+    BSR _initbank
+  noloc:
+  MOVE.l fname(pc),d1
+  MOVE.l #1005,d2
+  JSR -30(a6)
+  MOVE.l d0,hand : BEQ noload
+    MOVE.l hand(pc),d1
+    MOVEM.l (a3),d2-d3
+    JSR -42(a6)
+    MOVE.l hand(pc),d1
+    JSR -36(a6)
+  noload:
+RTS
 
 ._banksave:
   TST.l (a1):BEQ nosave:MOVE.l #1006,d2:JSR -30(a6):MOVE.l d0,hand
   BEQ nosave:MOVE.l hand(pc),d1:MOVEM.l (a3),d2-d3:JSR -48(a6)
   MOVE.l hand(pc),d1:JSR -36(a6):nosave:RTS
 
-._bankloc:MOVE.l(a3),d0:RTS
+._bankloc:
+  MOVE.l(a3),d0
+RTS
 
-._banksize:MOVE.l4(a3),d0:RTS
+._banksize:
+  MOVE.l4(a3),d0
+RTS
 
-._allocmem:ALibJsr #globalalloc:RTS
+._allocmem:
+  ALibJsr #globalalloc
+RTS
 
-._freemem:MOVE.l d0,a1:MOVE.l d1,d0:ALibJsr #globalfree:RTS
+._freemem:
+  MOVE.l d0,a1
+  MOVE.l d1,d0
+  ALibJsr #globalfree
+RTS
 
 hand:Dc.l 0
 fname:Dc.l 0

@@ -19,8 +19,9 @@
 
 
 
-  @{"Version 3.11.3 - Of Mice And Men" LINK V3113}
+  @{"Version 3.11.4 - Port Of Call" LINK V3114}
 
+  @{"Version 3.11.3 - Of Mice And Men" LINK V3113}
   @{"Version 3.11.2 - Of Mice And Men" LINK V3112}
   @{"Version 3.11.1 - Of Mice And Men (Pre-release)" LINK V3111}
   @{"Version 3.11.0 - Amiga 40 edition" LINK V3110}
@@ -46,6 +47,46 @@
   @{"Version 2.0+" link V20}
 
 @endnode
+
+@NODE V3114  "Version 3.11.4 - Port Of Call"
+ 
+ @{b}Version 3.11.4 - Port Of Call@{ub}
+ Release date: 09-03-2026
+
+ Compiler:
+ - added message port to compiler to be able to implement interprocess-communcation with PED in future
+ - compiler now signals REDDebugger a quit event when it quits
+ - moved OPTIMIZE-directive from fpulib to compiler itself
+
+ Debugger:
+ - handles a quit signal from compiler and quits itself
+
+ IDE:
+ - fixed a paste bug when pasting started at the first column of a line
+ - reverted source browser back to use source colors again for displaying entries
+ - prevented reopening of log console on public screen when closing PED
+
+ Blitzlibs:
+ - fpulib: OPTIMIZE moved to compiler
+ - NChunkylib: added some commands to it
+ - BDChunkylib: added sourcecode from Aminet
+
+ Examples:
+  - preferenceslib: added examples
+  - BDChunkylib: added example
+  - NChunkylib: added example
+  - added examples for usage of graphic.libraray/WritePixelArray8_
+  - added several Blitzmode-examples from old BUMs
+  - moved some example sources to other directories
+  - improved Voxelspace example to use c2p-methods
+
+ Documentation:
+ - preferenceslib: added documentation
+ - BDChunkylib: updated documentation
+ - NChunkylib: updated documentation
+
+@endnode
+
 
 @NODE V3113  "Version 3.11.3 - Of Mice And Men"
  

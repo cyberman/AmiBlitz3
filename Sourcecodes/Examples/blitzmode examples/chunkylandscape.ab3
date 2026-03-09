@@ -1,0 +1,664 @@
+; XTRA
+; Embedded .xtra Header
+; 
+; General Info
+; -------------------------------------------------------
+; ExePath         = ""
+; ExeFile         = ""
+; CreateIcon      = 1
+; Residents       = ""
+; 
+; Compiler
+; -------------------------------------------------------
+; StringBuffer    = 10240
+; MakeSmallest    = 0
+; FuncOptimize    = 0
+; Version         = 0.0.0
+; NumberOfBuilds  = 2
+; 
+; Debugger
+; -------------------------------------------------------
+; CliArgs         = ""
+; StackSize       = 8191
+; RuntimeDebug    = 1
+; DebugInfo       = 0
+; CreateDbgFile   = 0
+; OverflowCheck   = 0
+; AssemblerCheck  = 0
+; InterruptCheck  = 1
+; AutoRun         = 1
+; 
+; Editor
+; -------------------------------------------------------
+; CursorLine      = 92
+; CursorColumn    = 43
+; LabelSearch     = ""
+; LabelRemark     = 0
+; LabelAll        = 0
+; LabelCase       = 0
+; LabelPosition   = 0
+; 
+; Blitz Objects
+; -------------------------------------------------------
+; Max File        = 5
+; Max GadgetList  = 5
+; Max Shape       = 100
+; Max Bank        = 5
+; Max MenuList    = 5
+; Max GTList      = 20
+; Max BitMap      = 10
+; Max Screen      = 5
+; Max IntuiFont   = 5
+; Max Window      = 20
+; Max Palette     = 32
+; Max BlitzFont   = 4
+; Max IconInfo    = 1
+; Max MUIObject   = 50
+; Max AsyncReq    = 4
+; Max Req-Lib     = 5
+; Max GTMenuList  = 5
+; Max Console     = 5
+; Max TCPSock     = 5
+; Max Tape        = 5
+; Max TagList     = 5
+; Max Database    = 16
+; Max Sound       = 10
+; Max MedModule   = 8
+; Max Buffer      = 10
+; Max Queue       = 10
+; Max Sprite      = 20
+; Max Module      = 5
+; Max Slice       = 10
+; Max Page        = 4
+; Max CopList     = 10
+; Max PTModule    = 5
+; Max Anim        = 10
+; Max NChunky     = 50
+; Max Chunky      = 20
+; Max Stencil     = 5
+; Max XBSound     = 10
+; /XTRA
+;=====================================;
+; Chunky Fractal Landscape 1 Example  ;
+;=====================================;
+;
+;=================================;
+; This code can be used freely    ;
+; as long as full credit is given ;
+; to Nigel Hughes                 ;
+; ngh94@aber.ac.uk                ;
+;=================================;
+;
+;==================================;
+;   Special Code Using the RWE     ;
+; Chunky Library, Thanks For Giving;
+; Me A Reason To Code This Ted B.! ;
+;==================================;
+
+;==================================;
+; Seeing as we are using a chunky  ;
+; display, we might as well use all;
+; 256 colours for more variety. Naf;
+; planar means it would be too slow;
+; on my 040 once your at >3 ITS    ;
+; you might as well go chunky as it;
+; is much quicker to render to the ;
+; chunky display.                  ;
+;                                  ;
+; OK, this is the SAME as the other;
+; landscape demo, except that it   ;
+; uses fixed palette that contains ;
+; colours for beaches and snow     ;
+; peaked mountains.                ;
+;                                  ;
+; It all looks loverly after 5     ;
+; iterations, so give it a go. You ;
+; can't set the iterations to MORE ;
+; than 6, otherwise you'll run out ;
+; of the Acid array limit. Also    ;
+; you might have to drop the       ;
+; POLYLIMIT and POINTLIMIT constant;
+; if you have limited memory.      ;
+;                                  ;
+; OK this has got to be the last   ;
+; landscape routine I do for BUM10 ;
+; I'll use some other examples next;
+;                                  ;
+;==================================;
+
+;
+; FOR 68020 and above set #PROC to 2, 0 if it is 68000
+;
+
+#PROC=2
+
+#SHELL_SORT=1
+
+WBStartup
+AutoCookie On
+NoCli
+
+INCLUDE "FUN_Matrix.ab3"
+
+.NewTypes
+NEWTYPE.Triangle
+  p1.l
+  p2.l
+  p3.l
+  c.w
+  rc.w
+End NEWTYPE
+
+NEWTYPE.TPoint
+  x.w
+  y.w
+  z.w
+End NEWTYPE
+
+NEWTYPE.Poly
+  x1.w
+  y1.w
+  x2.w
+  y2.w
+  x3.w
+  y3.w
+End NEWTYPE
+
+;Bits to manipulate the 3d-coords of the sphere
+
+DEFTYPE.Matrix_Type Final
+DEFTYPE.Matrix_Type Temp1
+DEFTYPE.Matrix_Type Temp2
+DEFTYPE.Matrix_Type Temp3
+
+DEFTYPE.Vector_Type OutTemp
+DEFTYPE.Vector_Type VTemp1
+DEFTYPE.Vector_Type VTemp2
+DEFTYPE.Vector_Type Normal
+
+.Constants
+
+#RENDER_FEEDBACK  =0
+
+#DISPLAY_FPS  = 0
+#ELAPSED      = #DISPLAY_FPS/50
+
+#ITS          = 5
+
+#DEVIATION    = 50
+#DEV_DIF      = 10
+
+#COLOURS    =256
+#EACH       =31
+#EACH_LIMIT =30
+#HALF_EACH  =15
+#LHALF_EACH =15
+
+#POINT_LIMIT=35000
+#POLY_LIMIT =34000
+
+#SEA_LEVEL      =33
+#SAND_RANGE     =33
+#GRASS_RANGE    =31
+#MOUNTAIN_RANGE =5
+#SNOW_RANGE     =-10
+#UPPER_RANGE    =-1000
+
+;A new type for each "point" on the planet
+
+Dim S.q(360)
+Dim C.q(360)
+Dim Points.Vector_Type(#POINT_LIMIT)
+Dim OPoints.Vector_Type(#POINT_LIMIT)
+Dim Triangles.Triangle(#POLY_LIMIT)
+Dim Render.l(#POLY_LIMIT)
+Dim ZDepth.q(#POLY_LIMIT)
+Dim Color.l(#POLY_LIMIT)
+
+DEFTYPE.l NewPoint
+DEFTYPE.l NewTriangle
+
+;========;
+; Macros ;
+;========;
+.MACROS
+
+Macro Mid
+((`1+`2) LSR 1)
+End Macro
+
+;==========================;
+; Procedures And Functions ;
+;==========================;
+
+#MD   =100
+
+.StartUp
+Statement StartUp{}
+  SHARED NewPoint,NewTriangle
+  SHARED Points(),Triangles(),Render()
+
+  For count.l=0 To #POINT_LIMIT
+    Points(count)\x=0,0,0,0
+  Next count
+
+  Points(0)\x=-#MD,-#MD,Rnd(#DEVIATION)
+  Points(1)\x=#MD,-#MD,Rnd(#DEVIATION)
+  Points(2)\x=#MD,#MD,Rnd(#DEVIATION)
+  Points(3)\x=-#MD,#MD,Rnd(#DEVIATION)
+
+  Triangles(0)\p1=3,0,1
+  Triangles(1)\p1=3,1,2
+
+  NewPoint=4
+  NewTriangle=2
+
+  For rl.l=0 To #POLY_LIMIT
+    Render(rl)=rl
+  Next rl
+End Statement
+
+BLITZ
+
+.RenderView
+Statement RenderView{}
+  SHARED NewPoint,NewTriangle
+  SHARED Points(),Triangles(),Render(),ZDepth(),Color()
+
+  SHARED Final,Temp1,Temp2,Temp3,OutTemp,OPoints(),VTemp1,VTemp2,Normal,r1s.w,r2s.w
+
+  CCls 0
+
+  DEFTYPE.Poly DT
+
+  Locate 0,0 : Print "Stage 1"
+
+  NRender.l=0
+
+  For pt.l=0 To NewPoint-1
+    CNIF #PROC=0
+      ApplyMatrix &Final,&Points(pt),&OPoints(pt)
+    CELSE
+      FastApply &Final,&Points(pt),&OPoints(pt)
+    CEND
+  Next pt
+
+  cr.l=0
+
+  For rl.l=0 To NewTriangle-1
+    ct.l=Render(rl)
+
+    If Triangles(ct)\c<>0
+      p1.l=Triangles(ct)\p1
+      p2.l=Triangles(ct)\p2
+      p3.l=Triangles(ct)\p3
+      SubtractVectors &OPoints(p2),&OPoints(p1),&VTemp1
+      SubtractVectors &OPoints(p3),&OPoints(p1),&VTemp2
+      CrossProduct &VTemp2,&VTemp1,&Normal
+
+      VTemp1\x=1,0.25,0.5,1
+
+      CNIF #PROC=0
+        ec.q=VectorAngle(&Normal,&VTemp1)*#HALF_EACH+#LHALF_EACH
+      CELSE
+        ec.q=FastVectorAngle(&Normal,&VTemp1)*#HALF_EACH+#LHALF_EACH
+      CEND
+      If ec<0 Then ec=0
+      If ec>#EACH_LIMIT Then ec=#EACH_LIMIT
+
+      c.w=1+(Triangles(ct)\c LSL 5)
+      Triangles(ct)\rc=c+ec
+    Else
+      Triangles(ct)\rc=14+Rnd(#HALF_EACH)
+    EndIf
+    ZDepth(rl)=(OPoints(p1)\z+OPoints(p2)\z+OPoints(p2)\z)/3.0
+    NRender+1
+  Next rl
+
+  Locate 0,0 : Print "Stage 2"
+
+  CNIF #RENDER_FEEDBACK=1
+    ResetTimer
+    swapc.l=0
+  CEND
+
+  CNIF #SHELL_SORT=1
+    SortLimit.l=NRender-1
+    h.l=1
+    Repeat
+      h=3*h+1
+    Until h>SortLimit
+
+    Repeat
+      h=h/3
+      For i.l=h+1 To SortLimit
+        v.q=ZDepth(i)
+        vr.l=Render(i)
+        j.l=i
+        While ZDepth(j-h)>v
+          nr.l=j-h
+          ZDepth(j)=ZDepth(nr)
+          Render(j)=Render(nr)
+          j=nr
+          If j<=h Then Goto zero:
+        Wend
+zero:
+        ZDepth(j)=v
+        Render(j)=vr
+      Next i
+    Until h<=1
+  CELSE
+    SortLimit.l=NRender
+    DepthSort &ZDepth(0),&Render(0),&Color(0),SortLimit
+  CEND
+
+  Locate 0,0 : Print "Stage 3"
+  CNIF #RENDER_FEEDBACK=1
+    Print "Data:"+Str$(swapc)+"swaps, "+Str$(Timer/50)+"s"
+  CEND
+
+  For cr=0 To NRender-1
+    ct.l=Render(cr)
+    DT\x1=OPoints(Triangles(ct)\p1)\x+160,OPoints(Triangles(ct)\p1)\y+128
+    DT\x2=OPoints(Triangles(ct)\p2)\x+160,OPoints(Triangles(ct)\p2)\y+128
+    DT\x3=OPoints(Triangles(ct)\p3)\x+160,OPoints(Triangles(ct)\p3)\y+128
+    CTrianglef &DT,Triangles(ct)\rc
+  Next cr
+
+End Statement
+
+;vector type is 4 words
+
+Function.l FindPoint{x.w,y.w,ad.l,size.l}
+
+._FindPoint:
+  MOVE.l    d2,a0         ;a0=array pointer
+  MOVE.l    d0,d2         ;d2=x, d1=y
+  MOVEQ.l   #0,d0         ;d0=counter
+'_repeat:
+
+  MOVE.w    (a0)+,d5
+  MOVE.w    (a0)+,d6
+  ADDQ.l    #4,a0
+
+  CMP.w     d2,d5
+  BNE       'failcheck
+  CMP.w     d1,d6
+  BNE       'failcheck
+  BRA       'doneok
+'failcheck:
+  ADDQ.l    #1,d0
+  DBRA      d3,'_repeat
+'donebad:
+  MOVE.l    #-1,d0
+'doneok:
+  AsmExit
+End Function
+
+Function.l FindPoint2{x.w,y.w,ad.l,size.l}
+._FindPoint2:
+  MOVE.l    d2,a0         ;a0=array pointer
+  MOVE.l    d0,d2         ;d2=x, d1=y
+
+  MOVE.l    d3,d0         ;d0=counter
+
+  MOVE.l    d3,d4
+  LSL.l     #3,d4         ;d4=d4*8
+  ADD.l     d4,a0
+'_repeat:
+
+  MOVE.w    (a0),d5
+  MOVE.w    2(a0),d6
+  SUBQ.l    #8,a0
+
+  CMP.w     d2,d5
+  BNE       'failcheck
+  CMP.w     d1,d6
+  BNE       'failcheck
+  BRA       'doneok
+'failcheck:
+  SUBQ.l    #1,d0
+  DBRA      d3,'_repeat
+'donebad:
+  MOVE.l    #-1,d0
+'doneok:
+  AsmExit
+End Function
+
+
+.AddPoint
+Function.l AddPoint{x.w,y.w,z.w}
+  SHARED Points(),NewPoint
+
+;  pos.l=FindPoint{x,y,&Points(0)\x,NewPoint-1}
+  pos.l=FindPoint2{x,y,&Points(0)\x,NewPoint-1}
+;  If (pos<>pos2) Then Stop
+
+  If pos>=0 Function Return pos
+
+  If NewPoint>#POINT_LIMIT Then End
+
+  Points(NewPoint)\x=x,y,z
+
+  NewPoint+1
+  Function Return (NewPoint-1)
+End Function
+
+.AddTriangle
+Statement AddTriangle{p1.l,p2.l,p3.l}
+  SHARED NewTriangle,Triangles()
+
+  Triangles(NewTriangle)\p1=p1,p2,p3
+
+  NewTriangle+1
+End Statement
+
+.Split
+Statement Split{tnum.l,dev.l}
+  SHARED NewPoint,NewTriangle
+  SHARED Points(),Triangles()
+
+
+  hd.l=dev LSR 1
+
+  p1.l=Triangles(tnum)\p1
+  p2.l=Triangles(tnum)\p2
+  p3.l=Triangles(tnum)\p3
+  dev12.l=!Mid{Points(p1)\z,Points(p2)\z}+Rnd(dev)-hd
+  dev23.l=!Mid{Points(p3)\z,Points(p2)\z}+Rnd(dev)-hd
+  dev31.l=!Mid{Points(p1)\z,Points(p3)\z}+Rnd(dev)-hd
+
+  mid12.l=AddPoint{!Mid{Points(p1)\x,Points(p2)\x},!Mid{Points(p1)\y,Points(p2)\y},dev12}
+  mid23.l=AddPoint{!Mid{Points(p3)\x,Points(p2)\x},!Mid{Points(p3)\y,Points(p2)\y},dev23}
+  mid31.l=AddPoint{!Mid{Points(p1)\x,Points(p3)\x},!Mid{Points(p1)\y,Points(p3)\y},dev31}
+
+
+  ;Replace Original Triangle with this smaller one
+  Triangles(tnum)\p1=mid31,mid12,mid23
+
+  AddTriangle{p1,mid12,mid31}
+
+  AddTriangle{mid12,p2,mid23}
+
+  AddTriangle{mid31,mid23,p3}
+
+End Statement
+
+.Iteration
+Statement Iteration{depth_.l,dev.l}
+  SHARED NewPoint,NewTriangle
+  SHARED Points(),Triangles()
+
+  BitMapOutput 0
+
+  itlimit.l=NewTriangle-1
+
+  Cls 0
+  Locate 0,0
+  Print "Iteration:"+Str$(depth_),","
+
+  For ct.l=0 To itlimit
+    Split{ct,dev}
+    Locate 13,0
+    Print Str$((ct*100)/itlimit)+"%"
+  Next ct
+
+  If depth_<#ITS
+    Iteration{depth_+1,Max(dev-#DEV_DIF,0)}
+  EndIf
+End Statement
+
+.InRange
+Function.b InRange{rs.l,re.l,va.l,va2.l,va3.l}
+  vav.l=(va+va2+va3)/3
+;  If (va>=rs) AND (va<=re) AND (va2>=rs) AND (va2<=re)  AND (va3>=rs) AND (va3<=re)
+  If (vav>=rs) AND (vav<=re)
+    Function Return True
+  Else
+    Function Return False
+  EndIf
+End Function
+
+
+.FindRange
+Function.w FindRange{p1.l,p2.l,p3.l}
+
+  SHARED Points()
+
+  y1.l=Points(p1)\y
+  y2.l=Points(p2)\y
+  y3.l=Points(p3)\y
+
+  If InRange{#GRASS_RANGE,#SAND_RANGE,y1,y2,y3} Function Return 3
+  If InRange{#MOUNTAIN_RANGE,#GRASS_RANGE,y1,y2,y3} Function Return 1
+  If InRange{#SNOW_RANGE,#MOUNTAIN_RANGE,y1,y2,y3} Function Return 2
+  If InRange{#UPPER_RANGE,#SNOW_RANGE,y1,y2,y3} Function Return 4
+
+  Function Return 1
+End Function
+
+.ConvertPoints
+Statement ConvertPoints{}
+  SHARED Points(),NewPoint
+  SHARED Triangles(),NewTriangle
+
+  Locate 0,0
+  NPrint "Converting Points           "
+
+  For cp.l=0 To NewPoint-1
+    tz.l=Points(cp)\z
+    Points(cp)\z=Points(cp)\y
+    If (tz>#SEA_LEVEL) Then tz=#SEA_LEVEL
+    Points(cp)\y=tz
+  Next cp
+
+  NPrint "Converting Planes           "
+
+  For ct.l=0 To NewTriangle-1
+    p1.l=Triangles(ct)\p1
+    p2.l=Triangles(ct)\p2
+    p3.l=Triangles(ct)\p3
+    If (Points(p1)\y=#SEA_LEVEL) AND (Points(p2)\y=#SEA_LEVEL) AND (Points(p3)\y=#SEA_LEVEL)
+      Triangles(ct)\c=0
+    Else
+      Triangles(ct)\c=FindRange{p1,p2,p3}
+    EndIf
+  Next ct
+End Statement
+
+AMIGA
+
+.BuildTables
+;Build up the look up tables.
+
+For angle.w=0 To 359
+  S(angle)=Sin((Pi/180.0)*angle)
+  C(angle)=Cos((Pi/180.0)*angle)
+Next angle
+
+;Build the sphere and texture map LUTs
+
+
+BitMap 0,320,256,8
+BitMap 1,320,256,8
+
+;Build the light source palette
+
+LoadPalette 1,"data/ChunkyPalette.iff"
+
+BLITZ
+BlitzKeys On
+InitCopList 0,42,256,$30008,0,#COLOURS,0
+CreateDisplay 0
+DisplayBitMap 0,0
+DisplayPalette 0,1
+Use BitMap 0
+
+InitChunky 0,320,256,2
+
+If CInitDraw (Addr Chunky(0))=False Then End
+
+
+physical.b=0
+logical.b=1
+
+;Position of the light source
+
+VTemp1\x=1,0.25,0.5,1
+xrot.w=25
+yrot.w=45
+zrot.w=0
+
+build_rotation_matrix{#ABOUT_Y,&Temp2,yrot}
+build_rotation_matrix{#ABOUT_X,&Temp1,xrot}
+concatenate_matrix{&Temp1,&Temp2,&Temp3}
+build_rotation_matrix{#ABOUT_Z,&Temp1,zrot}
+concatenate_matrix{&Temp1,&Temp3,&Final}
+
+
+ResetTimer
+.Main
+
+StartUp{}
+CNIF #ITS>0
+  Iteration{0,#DEVIATION-#DEV_DIF}
+CEND
+
+#DB=1
+
+ConvertPoints{}
+
+Repeat
+
+  logical=physical
+  If physical=1 Then physical=0 Else physical=1
+  VWait
+  CNIF #DB=1
+    DisplayBitMap 0,physical ;physical
+  CELSE
+    DisplayBitMap 0,logical
+  CEND
+  Use BitMap logical
+  BitMapOutput physical
+
+;  xrot+3 : If xrot>359 Then xrot=0
+  yrot+5 : If yrot>359 Then yrot=0
+;  zrot+2 : If zrot>359 Then zrot=0
+
+  build_rotation_matrix{#ABOUT_Y,&Temp2,yrot}
+  build_rotation_matrix{#ABOUT_X,&Temp1,xrot}
+  concatenate_matrix{&Temp1,&Temp2,&Temp3}
+  build_rotation_matrix{#ABOUT_Z,&Temp1,zrot}
+  concatenate_matrix{&Temp1,&Temp3,&Final}
+
+  RenderView{}
+  ChunkyToBitMap 0,logical
+Until Joyb(0)
+
+AMIGA
+
+CDrawDone
+
+;d.l=RTEZRequest("Info",Str$(NewPoint)+" points"+Chr$(10)+Str$(NewTriangle)+" polygs","Phew",4)
+
+End
