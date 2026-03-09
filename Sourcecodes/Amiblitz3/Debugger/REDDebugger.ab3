@@ -11,7 +11,7 @@
 ; Compiler
 ; -------------------------------------------------------
 ; StringBuffer    = 10240
-; MakeSmallest    = 0
+; MakeSmallest    = 1
 ; FuncOptimize    = 1
 ; Version         = 3.11.4
 ; NumberOfBuilds  = 178
@@ -851,7 +851,7 @@ CNIF #BACKGROUND_DBUG
 
     Select ev
     Case rexxData\signal
-      log2PED{"received message signal ..."}
+      ;log2PED{"received message signal ..."}
 
       ; store current position
       rexxData\winx = WindowX
@@ -893,7 +893,7 @@ CNIF #BACKGROUND_DBUG
             ali.l = 0 : lt$ = "" : exetask = 0 : autoeval = 0 : autoeval$ = ""
             pfregs = 0
             !ComData_SetB{comByte_RunningFlag,#0}
-            log2PED{"debugging the program has ended..."}
+            log2PED{"debugging of the program has ended..."}
 
           Case #IDENTIFIER_QUIT         
             quit = True

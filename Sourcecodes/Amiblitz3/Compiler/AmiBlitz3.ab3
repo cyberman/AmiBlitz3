@@ -1306,12 +1306,14 @@ End Function
   Gosub free_blitzlibs
   
 .shutdown_compiler:
+  If config\ptr_seg_ped      Then UnLoadSeg_ config\ptr_seg_ped
+  If config\ptr_seg_debugger Then UnLoadSeg_ config\ptr_seg_debugger
+  Gosub tell_debugger_to_quit
+
   ;-- ptr_macrobuffer_begin: byte 0..3: size of macrobuffer
   ;--                        byte 4..7: address begin of buffer
   If PeekL(?ptr_macrobuffer_begin)-4 Then FreeMem_ PeekL(?ptr_macrobuffer_begin)-4, PeekL(?macrobuffer_size) + 4
-
   If PeekL(?constpcat) Then FreeMem_ PeekL(?constpcat), PeekL(?constmaxpc) : PokeL ?constpcat,0
-
   If PeekL(?mempool2) Then DeletePool_ PeekL(?mempool2) : PokeL ?mempool2,0
   If PeekL(?mempool) Then DeletePool_ PeekL(?mempool) : PokeL ?mempool,0
 
@@ -1319,10 +1321,6 @@ End Function
   If PeekL(?_mathffpbase) Then CloseLibrary_ PeekL(?_mathffpbase) : PokeL ?_mathffpbase,0
   If environment\signalStopBitNum Then FreeSignal_ environment\signalStopBitNum
   If environment\signalPanicBitNum Then FreeSignal_ environment\signalPanicBitNum
-
-  If config\ptr_seg_ped      Then UnLoadSeg_ config\ptr_seg_ped
-  If config\ptr_seg_debugger Then UnLoadSeg_ config\ptr_seg_debugger
-  Gosub tell_debugger_to_quit
 
 .abnormal_exit:
   If environment\myPort
@@ -2433,6 +2431,7 @@ RTS
   CLR.b funcparloop
   CLR.b nostringopt
   CLR.b firsttime
+  CLR.l lastsourcepos
   CLR.l lastdestpointer
   CLR.l lastwritedat
   CLR.l prevwritedat
@@ -27216,12 +27215,12 @@ Return
 .log_blitzlib:    ; A1: libpointer, D1: libnum
     !regs2stack
     !basic
-    PutReg A1,libaddr.l
     PutReg D1,libnum2.l
+    PutReg A1,libaddr.l
 
     ; struct lib
     If libaddr.l = 0
-      log2PED{"no data for lib #" + Str$(libnum2.l) + " at adress #" + Hex$(libaddr),#log_error}
+      log2PED{"no data for lib #" + Str$(libnum2.l) + " at address #" + Hex$(libaddr),#log_error}
     Else
       libnum2.l = PeekW(libaddr + $4) AND $FFFF
       libsize.l = PeekL(libaddr + $6) - PeekL(libaddr + $12)
@@ -27258,8 +27257,11 @@ Return
           !ComData_GetL{comPtr_PreProcessor,include_preprocessor} : *tn.preprocessor = PeekL(?include_preprocessor)
           written.l = preproc_DetokenizeLine{*tn, PeekL(?lastsourcepos), &detokenline}
           If written > 0 
-            PokeB &detokenline + written,0
-            If written > 128 Then Poke.s &detokenline + 128, "..." + Chr$(0)
+            If written > 128 
+              Poke.s &detokenline + 128, "..." + Chr$(0)
+            Else
+              PokeB &detokenline + written,0
+            EndIf
             strline.s = Trim$(Peek.s(&detokenline))
             logmess + "| " + strline
           EndIf
